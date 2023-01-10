@@ -8,6 +8,7 @@ import net.runelite.cache.region.Position;
 import net.runelite.cache.region.Region;
 import net.runelite.cache.region.RegionLoader;
 import net.runelite.cache.util.XteaKeyManager;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -34,7 +35,7 @@ public class MovementDumperRewrite {
     private Collection<Region> regions;
     private ObjectManager objectManager;
 
-
+    @Ignore
     @Test
     public void dumpMovementData() throws IOException {
         logger.info("Start");
@@ -48,14 +49,21 @@ public class MovementDumperRewrite {
         for (Region region : this.regions) {
             for (int dx = 0; dx < REGION_SIZE; dx++) {
                 for (int dy = 0; dy < REGION_SIZE; dy++) {
-                    for (int z = 0; z < 1; z++) {
-                        final boolean isBridge = (region.getTileSetting(z + 1, dx, dy) & 2) != 0;
-                        final int gameZ = isBridge ? z + 1: z;
-                        final boolean isWalkable = (region.getTileSetting(gameZ, dx, dy) & 1) == 0;
-                        if (isWalkable) {
-                            Position pos = new Position(region.getBaseX() + dx, region.getBaseY() + dy, z);
-                            walkableTiles.add(pos);
+                    for (int z = 0; z <= 3; z++) {
+                        final TileSettings tileSettings = new TileSettings(region, new Position(dx, dy, z));
+                        if (!tileSettings.isWalkable || tileSettings.isBlocked || tileSettings.isBridgeAbove) {
+                            continue;
                         }
+                        final Position normalizedAbsolutePos = new Position(
+                                region.getBaseX() + dx,
+                                region.getBaseY() + dy,
+                                tileSettings.isBridge ? z - 1 : z);
+
+                        // Filter z = 0
+                        if (normalizedAbsolutePos.getZ() != 0) {
+                            continue;
+                        }
+                        walkableTiles.add(normalizedAbsolutePos);
                     }
                 }
             }
@@ -64,27 +72,22 @@ public class MovementDumperRewrite {
         logger.info("Gathering obstacles");
         for (Region region : this.regions) {
             for (Location location : region.getLocations()) {
-                final int localX = location.getPosition().getX() - region.getBaseX();
-                final int localY = location.getPosition().getY() - region.getBaseY();
-                final int gameZ = location.getPosition().getZ();
+                final Position relativePosition = new Position(
+                        location.getPosition().getX() - region.getBaseX(),
+                        location.getPosition().getY() - region.getBaseY(),
+                        location.getPosition().getZ());
 
-                final boolean isBlocked = (region.getTileSetting(gameZ, localX, localY) & 24) != 0;
-                if (isBlocked) {
+                final TileSettings tileSettings = new TileSettings(region, relativePosition);
+                if (tileSettings.isBlocked || tileSettings.isBridgeAbove) {
                     continue;
                 }
-
-                if(gameZ < 3) {
-                    final boolean isBridgeAbove = (region.getTileSetting(gameZ + 1, localX, localY) & 2) != 0;
-                    if (isBridgeAbove) {
-                        continue;
-                    }
-                }
-
-                final boolean isBridge = (region.getTileSetting(gameZ, localX, localY) & 2) != 0;
-                final Position normalizedPosition = new Position(location.getPosition().getX(), location.getPosition().getY(), isBridge ? gameZ - 1 : gameZ);
+                final Position normalizedAbsolutePosition = new Position(
+                        location.getPosition().getX(),
+                        location.getPosition().getY(),
+                        tileSettings.isBridge ? location.getPosition().getZ() - 1 : location.getPosition().getZ());
 
                 // Filter
-                if (normalizedPosition.getZ() != 0) {
+                if (normalizedAbsolutePosition.getZ() != 0) {
                     continue;
                 }
 
@@ -92,41 +95,41 @@ public class MovementDumperRewrite {
                     // Lateral direction blocked
                     switch (location.getOrientation()) {
                         case 0:
-                            obstaclesMap.markLeftBlocked(normalizedPosition);
+                            obstaclesMap.markLeftBlocked(normalizedAbsolutePosition);
                             break;
                         case 1:
-                            obstaclesMap.markTopBlocked(normalizedPosition);
+                            obstaclesMap.markTopBlocked(normalizedAbsolutePosition);
                             break;
                         case 2:
-                            obstaclesMap.markRightBlocked(normalizedPosition);
+                            obstaclesMap.markRightBlocked(normalizedAbsolutePosition);
                             break;
                         case 3:
-                            obstaclesMap.markBottomBlocked(normalizedPosition);
+                            obstaclesMap.markBottomBlocked(normalizedAbsolutePosition);
                             break;
                     }
                 } else if (location.getType() == 2) {
                     // Diagonal direction blocked, blocks both lateral ways
                     switch (location.getOrientation()) {
                         case 0:
-                            obstaclesMap.markTopBlocked(normalizedPosition);
-                            obstaclesMap.markLeftBlocked(normalizedPosition);
+                            obstaclesMap.markTopBlocked(normalizedAbsolutePosition);
+                            obstaclesMap.markLeftBlocked(normalizedAbsolutePosition);
                             break;
                         case 1:
-                            obstaclesMap.markTopBlocked(normalizedPosition);
-                            obstaclesMap.markRightBlocked(normalizedPosition);
+                            obstaclesMap.markTopBlocked(normalizedAbsolutePosition);
+                            obstaclesMap.markRightBlocked(normalizedAbsolutePosition);
                             break;
                         case 2:
-                            obstaclesMap.markBottomBlocked(normalizedPosition);
-                            obstaclesMap.markRightBlocked(normalizedPosition);
+                            obstaclesMap.markBottomBlocked(normalizedAbsolutePosition);
+                            obstaclesMap.markRightBlocked(normalizedAbsolutePosition);
                             break;
                         case 3:
-                            obstaclesMap.markBottomBlocked(normalizedPosition);
-                            obstaclesMap.markLeftBlocked(normalizedPosition);
+                            obstaclesMap.markBottomBlocked(normalizedAbsolutePosition);
+                            obstaclesMap.markLeftBlocked(normalizedAbsolutePosition);
                             break;
                     }
                 } else if (location.getType() == 9) {
                     // All sides blocked
-                    obstaclesMap.markAllSidesBlocked(normalizedPosition);
+                    obstaclesMap.markAllSidesBlocked(normalizedAbsolutePosition);
                 } else if (location.getType() == 10) {
                     // Game object covers tiles
                     final ObjectDefinition object = this.objectManager.getObject(location.getId());
@@ -135,7 +138,7 @@ public class MovementDumperRewrite {
 
                     for (int dx = 0; dx < width; dx++) {
                         for (int dy = 0; dy < height; dy++) {
-                            final Position position = new Position(normalizedPosition.getX() + dx, normalizedPosition.getY() + dy, normalizedPosition.getZ());
+                            final Position position = new Position(normalizedAbsolutePosition.getX() + dx, normalizedAbsolutePosition.getY() + dy, normalizedAbsolutePosition.getZ());
                             obstaclesMap.markAllSidesBlocked(position);
                         }
                     }
@@ -179,33 +182,52 @@ public class MovementDumperRewrite {
         this.objectManager = objectManager;
     }
 
-    static class ObstaclesMap {
+    private static class TileSettings {
+        public final boolean isWalkable;
+        public final boolean isBlocked;
+        public final boolean isBridge;
+        public final boolean isBridgeAbove;
+
+        public TileSettings(Region region, Position relativePosition) {
+            final int tileSetting = region.getTileSetting(relativePosition.getZ(), relativePosition.getX(), relativePosition.getY());
+            this.isWalkable = (tileSetting & 1) == 0;
+            this.isBlocked = (tileSetting & 24) != 0;
+            this.isBridge = (tileSetting & 2) != 0;
+            if (relativePosition.getZ() < 3) {
+                this.isBridgeAbove = (region.getTileSetting(relativePosition.getZ() + 1, relativePosition.getX(), relativePosition.getY()) & 2) != 0;
+            } else {
+                this.isBridgeAbove = false;
+            }
+        }
+    }
+
+    private static class ObstaclesMap {
         private final HashMap<Position, TileObstacles> map = new HashMap<>();
 
-        public void markLeftBlocked(Position position) {
-            this.getObstacle(position).leftBlocked = true;
+        public void markLeftBlocked(Position absolutePosition) {
+            this.getObstacle(absolutePosition).leftBlocked = true;
         }
 
-        public void markRightBlocked(Position position) {
-            this.getObstacle(position).rightBlocked = true;
+        public void markRightBlocked(Position absolutePosition) {
+            this.getObstacle(absolutePosition).rightBlocked = true;
         }
 
-        public void markTopBlocked(Position position) {
-            this.getObstacle(position).topBlocked = true;
+        public void markTopBlocked(Position absolutePosition) {
+            this.getObstacle(absolutePosition).topBlocked = true;
         }
 
-        public void markBottomBlocked(Position position) {
-            this.getObstacle(position).bottomBlocked = true;
+        public void markBottomBlocked(Position absolutePosition) {
+            this.getObstacle(absolutePosition).bottomBlocked = true;
         }
 
-        public void markAllSidesBlocked(Position position) {
-            this.markLeftBlocked(position);
-            this.markRightBlocked(position);
-            this.markTopBlocked(position);
-            this.markBottomBlocked(position);
+        public void markAllSidesBlocked(Position absolutePosition) {
+            this.markLeftBlocked(absolutePosition);
+            this.markRightBlocked(absolutePosition);
+            this.markTopBlocked(absolutePosition);
+            this.markBottomBlocked(absolutePosition);
         }
 
-        public MovementDump writeToMovementDump(MovementDump movementDump) {
+        public void writeToMovementDump(MovementDump movementDump) {
             movementDump.obstaclePositions = new Position[this.map.size()];
             movementDump.obstacleValues = new int[this.map.size()];
             int index = 0;
@@ -229,14 +251,13 @@ public class MovementDumperRewrite {
                 movementDump.obstacleValues[index] = obstacleValue;
                 index++;
             }
-            return movementDump;
         }
 
-        private TileObstacles getObstacle(Position position) {
-            if (!this.map.containsKey(position)) {
-                this.map.put(position, new TileObstacles());
+        private TileObstacles getObstacle(Position absolutePosition) {
+            if (!this.map.containsKey(absolutePosition)) {
+                this.map.put(absolutePosition, new TileObstacles());
             }
-            return this.map.get(position);
+            return this.map.get(absolutePosition);
         }
     }
 
