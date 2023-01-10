@@ -25,19 +25,18 @@ import java.util.zip.ZipOutputStream;
 public class MovementDumperRewrite {
     private static final String CACHE_DIR = "C:\\Users\\Oli\\Desktop\\Code\\OSRS Navigator\\wiki maps pathfinding project\\movement dumper\\2022-12-13-rev210\\cache";
     private static final String XTEAKEYS_FILE = "C:\\Users\\Oli\\Desktop\\Code\\OSRS Navigator\\wiki maps pathfinding project\\movement dumper\\2022-12-13-rev210\\xteas_old_format.json";
-    private static final String OUTPUT_FILE_ARCHIVE = "C:\\Users\\Oli\\Desktop\\Code\\OSRS Navigator\\wiki maps pathfinding project\\spring restructure\\pathfinder\\src\\main\\resources\\movement.json.zip.new";
+    private static final String OUTPUT_FILE_ARCHIVE = "C:\\Users\\Oli\\Desktop\\Code\\OSRS Navigator\\wiki maps pathfinding project\\spring restructure\\pathfinder\\src\\main\\resources\\movement.json.zip";
     private static final String OUTPUT_FILE_ARCHIVE_ENTRY = "movement.json";
     private static final int REGION_SIZE = 64;
 
     private final Logger logger = LoggerFactory.getLogger(MovementDumperRewrite.class);
 
-    // Init in test
     private Collection<Region> regions;
     private ObjectManager objectManager;
 
     @Ignore
     @Test
-    public void dumpMovementData() throws IOException {
+    public void extractAndDumpMovementData() throws IOException {
         logger.info("Start");
         this.init();
         logger.info("Init done");
@@ -45,6 +44,51 @@ public class MovementDumperRewrite {
         final TilesMap tilesMap = new TilesMap();
 
         logger.info("Gathering walkable tiles");
+        this.gatherWalkableTiles(tilesMap);
+
+        logger.info("Gathering obstacles");
+        this.gatherObstacles(tilesMap);
+
+        logger.info("writing dump");
+        // Write result to old format
+        final String output = this.prepareMovementDump(tilesMap);
+        // TODO
+        // final String output = this.prepareCsvDump(tilesMap);
+        this.writeToZip(output);
+        logger.info("done");
+    }
+
+    @Deprecated
+    private String prepareMovementDump(final TilesMap tilesMap) {
+        final MovementDump movementDump = new MovementDump();
+        movementDump.walkable = tilesMap.map.keySet();
+        movementDump.obstaclePositions = new LinkedList<>();
+        movementDump.obstacleValues = new LinkedList<>();
+        for (Map.Entry<Position, TileObstacles> entry : tilesMap.map.entrySet()) {
+            final Position position = entry.getKey();
+            final TileObstacles obstacle = entry.getValue();
+            int obstacleValue = 0;
+            if (obstacle.topBlocked) {
+                obstacleValue += 1;
+            }
+            if (obstacle.rightBlocked) {
+                obstacleValue += 2;
+            }
+            if (obstacle.bottomBlocked) {
+                obstacleValue += 4;
+            }
+            if (obstacle.leftBlocked) {
+                obstacleValue += 8;
+            }
+            if (obstacleValue != 0) {
+                movementDump.obstaclePositions.add(position);
+                movementDump.obstacleValues.add(obstacleValue);
+            }
+        }
+        return new Gson().toJson(movementDump);
+    }
+
+    private void gatherWalkableTiles(final TilesMap tilesMap) {
         for (Region region : this.regions) {
             for (int dx = 0; dx < REGION_SIZE; dx++) {
                 for (int dy = 0; dy < REGION_SIZE; dy++) {
@@ -53,10 +97,7 @@ public class MovementDumperRewrite {
                         if (!tileSettings.isWalkable || tileSettings.isBlocked || tileSettings.isBridgeAbove) {
                             continue;
                         }
-                        final Position normalizedAbsolutePos = new Position(
-                                region.getBaseX() + dx,
-                                region.getBaseY() + dy,
-                                tileSettings.isBridge ? z - 1 : z);
+                        final Position normalizedAbsolutePos = new Position(region.getBaseX() + dx, region.getBaseY() + dy, tileSettings.isBridge ? z - 1 : z);
 
                         // Filter z = 0
                         if (normalizedAbsolutePos.getZ() != 0) {
@@ -67,23 +108,27 @@ public class MovementDumperRewrite {
                 }
             }
         }
+    }
 
-        logger.info("Gathering obstacles");
+    private void writeToZip(final String output) throws IOException {
+        try (final FileOutputStream out = new FileOutputStream(OUTPUT_FILE_ARCHIVE); final ZipOutputStream zipOut = new ZipOutputStream(out)) {
+            ZipEntry zipEntry = new ZipEntry(OUTPUT_FILE_ARCHIVE_ENTRY);
+            zipOut.putNextEntry(zipEntry);
+            zipOut.write(output.getBytes(StandardCharsets.UTF_8));
+            zipOut.closeEntry();
+        }
+    }
+
+    private void gatherObstacles(final TilesMap tilesMap) {
         for (Region region : this.regions) {
             for (Location location : region.getLocations()) {
-                final Position relativePosition = new Position(
-                        location.getPosition().getX() - region.getBaseX(),
-                        location.getPosition().getY() - region.getBaseY(),
-                        location.getPosition().getZ());
+                final Position relativePosition = new Position(location.getPosition().getX() - region.getBaseX(), location.getPosition().getY() - region.getBaseY(), location.getPosition().getZ());
 
                 final TileSettings tileSettings = new TileSettings(region, relativePosition);
                 if (tileSettings.isBlocked || tileSettings.isBridgeAbove) {
                     continue;
                 }
-                final Position normalizedAbsolutePosition = new Position(
-                        location.getPosition().getX(),
-                        location.getPosition().getY(),
-                        tileSettings.isBridge ? location.getPosition().getZ() - 1 : location.getPosition().getZ());
+                final Position normalizedAbsolutePosition = new Position(location.getPosition().getX(), location.getPosition().getY(), tileSettings.isBridge ? location.getPosition().getZ() - 1 : location.getPosition().getZ());
 
                 // Filter
                 if (normalizedAbsolutePosition.getZ() != 0) {
@@ -144,21 +189,6 @@ public class MovementDumperRewrite {
                 }
             }
         }
-
-        // Write result to weird format
-        logger.info("writing dump");
-        final MovementDump movementDump = new MovementDump();
-        tilesMap.writeToMovementDump(movementDump);
-        movementDump.walkable = new LinkedList<>(tilesMap.map.keySet());
-        final String output = new Gson().toJson(movementDump);
-        try (final FileOutputStream out = new FileOutputStream(OUTPUT_FILE_ARCHIVE);
-             final ZipOutputStream zipOut = new ZipOutputStream(out)) {
-            ZipEntry zipEntry = new ZipEntry(OUTPUT_FILE_ARCHIVE_ENTRY);
-            zipOut.putNextEntry(zipEntry);
-            zipOut.write(output.getBytes(StandardCharsets.UTF_8));
-            zipOut.closeEntry();
-        }
-        logger.info("done");
     }
 
 
@@ -209,28 +239,28 @@ public class MovementDumperRewrite {
 
         public void markLeftBlocked(Position absolutePosition) {
             final TileObstacles obstacle = this.map.get(absolutePosition);
-            if(obstacle != null) {
+            if (obstacle != null) {
                 obstacle.leftBlocked = true;
             }
         }
 
         public void markRightBlocked(Position absolutePosition) {
             final TileObstacles obstacle = this.map.get(absolutePosition);
-            if(obstacle != null) {
+            if (obstacle != null) {
                 obstacle.rightBlocked = true;
             }
         }
 
         public void markTopBlocked(Position absolutePosition) {
             final TileObstacles obstacle = this.map.get(absolutePosition);
-            if(obstacle != null) {
+            if (obstacle != null) {
                 obstacle.topBlocked = true;
             }
         }
 
         public void markBottomBlocked(Position absolutePosition) {
             final TileObstacles obstacle = this.map.get(absolutePosition);
-            if(obstacle != null) {
+            if (obstacle != null) {
                 obstacle.bottomBlocked = true;
             }
         }
@@ -242,33 +272,6 @@ public class MovementDumperRewrite {
             this.markBottomBlocked(absolutePosition);
         }
 
-        public void writeToMovementDump(MovementDump movementDump) {
-            List<Position> obstaclePositions = new LinkedList<>();
-            List<Integer> obstacleValues = new LinkedList<>();
-            for (Map.Entry<Position, TileObstacles> entry : this.map.entrySet()) {
-                final Position position = entry.getKey();
-                final TileObstacles obstacle = entry.getValue();
-                int obstacleValue = 0;
-                if (obstacle.topBlocked) {
-                    obstacleValue += 1;
-                }
-                if (obstacle.rightBlocked) {
-                    obstacleValue += 2;
-                }
-                if (obstacle.bottomBlocked) {
-                    obstacleValue += 4;
-                }
-                if (obstacle.leftBlocked) {
-                    obstacleValue += 8;
-                }
-                if(obstacleValue != 0) {
-                    obstaclePositions.add(position);
-                    obstacleValues.add(obstacleValue);
-                }
-            }
-            movementDump.obstaclePositions = obstaclePositions;
-            movementDump.obstacleValues = obstacleValues;
-        }
     }
 
     private static class TileObstacles {
@@ -278,9 +281,10 @@ public class MovementDumperRewrite {
         public boolean bottomBlocked = false;
     }
 
+    @Deprecated
     private static class MovementDump {
-        List<Position> walkable;
-        List<Position> obstaclePositions;
-        List<Integer> obstacleValues;
+        Collection<Position> walkable;
+        Collection<Position> obstaclePositions;
+        Collection<Integer> obstacleValues;
     }
 }
