@@ -22,14 +22,14 @@ import java.util.*;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
-public class MovementDumperRewrite {
+public class MovementDumper {
     private static final String CACHE_DIR = "C:\\Users\\Oli\\Desktop\\Code\\OSRS Navigator\\wiki maps pathfinding project\\movement dumper\\2022-12-13-rev210\\cache";
     private static final String XTEAKEYS_FILE = "C:\\Users\\Oli\\Desktop\\Code\\OSRS Navigator\\wiki maps pathfinding project\\movement dumper\\2022-12-13-rev210\\xteas_old_format.json";
     private static final String OUTPUT_FILE_ARCHIVE = "C:\\Users\\Oli\\Desktop\\Code\\OSRS Navigator\\wiki maps pathfinding project\\spring restructure\\pathfinder\\src\\main\\resources\\movement.json.zip";
     private static final String OUTPUT_FILE_ARCHIVE_ENTRY = "movement.json";
     private static final int REGION_SIZE = 64;
 
-    private final Logger logger = LoggerFactory.getLogger(MovementDumperRewrite.class);
+    private final Logger logger = LoggerFactory.getLogger(MovementDumper.class);
 
     private Collection<Region> regions;
     private ObjectManager objectManager;

@@ -28,7 +28,7 @@ import org.slf4j.LoggerFactory;
  * This is the original movement dumper given to me by cook
  * It outputs into an old JSON format
  * It also only scrapes data on plane z = 0
- * @deprecated use {@link MovementDumperRewrite} instead
+ * @deprecated use {@link MovementDumper} instead
  */
 @Deprecated
 public class MovementDumperOld
