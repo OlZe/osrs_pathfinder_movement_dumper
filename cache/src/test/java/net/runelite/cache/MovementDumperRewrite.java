@@ -42,8 +42,7 @@ public class MovementDumperRewrite {
         this.init();
         logger.info("Init done");
 
-        final ObstaclesMap obstaclesMap = new ObstaclesMap();
-        final List<Position> walkableTiles = new LinkedList<>();
+        final TilesMap tilesMap = new TilesMap();
 
         logger.info("Gathering walkable tiles");
         for (Region region : this.regions) {
@@ -63,7 +62,7 @@ public class MovementDumperRewrite {
                         if (normalizedAbsolutePos.getZ() != 0) {
                             continue;
                         }
-                        walkableTiles.add(normalizedAbsolutePos);
+                        tilesMap.addTile(normalizedAbsolutePos);
                     }
                 }
             }
@@ -95,41 +94,41 @@ public class MovementDumperRewrite {
                     // Lateral direction blocked
                     switch (location.getOrientation()) {
                         case 0:
-                            obstaclesMap.markLeftBlocked(normalizedAbsolutePosition);
+                            tilesMap.markLeftBlocked(normalizedAbsolutePosition);
                             break;
                         case 1:
-                            obstaclesMap.markTopBlocked(normalizedAbsolutePosition);
+                            tilesMap.markTopBlocked(normalizedAbsolutePosition);
                             break;
                         case 2:
-                            obstaclesMap.markRightBlocked(normalizedAbsolutePosition);
+                            tilesMap.markRightBlocked(normalizedAbsolutePosition);
                             break;
                         case 3:
-                            obstaclesMap.markBottomBlocked(normalizedAbsolutePosition);
+                            tilesMap.markBottomBlocked(normalizedAbsolutePosition);
                             break;
                     }
                 } else if (location.getType() == 2) {
                     // Diagonal direction blocked, blocks both lateral ways
                     switch (location.getOrientation()) {
                         case 0:
-                            obstaclesMap.markTopBlocked(normalizedAbsolutePosition);
-                            obstaclesMap.markLeftBlocked(normalizedAbsolutePosition);
+                            tilesMap.markTopBlocked(normalizedAbsolutePosition);
+                            tilesMap.markLeftBlocked(normalizedAbsolutePosition);
                             break;
                         case 1:
-                            obstaclesMap.markTopBlocked(normalizedAbsolutePosition);
-                            obstaclesMap.markRightBlocked(normalizedAbsolutePosition);
+                            tilesMap.markTopBlocked(normalizedAbsolutePosition);
+                            tilesMap.markRightBlocked(normalizedAbsolutePosition);
                             break;
                         case 2:
-                            obstaclesMap.markBottomBlocked(normalizedAbsolutePosition);
-                            obstaclesMap.markRightBlocked(normalizedAbsolutePosition);
+                            tilesMap.markBottomBlocked(normalizedAbsolutePosition);
+                            tilesMap.markRightBlocked(normalizedAbsolutePosition);
                             break;
                         case 3:
-                            obstaclesMap.markBottomBlocked(normalizedAbsolutePosition);
-                            obstaclesMap.markLeftBlocked(normalizedAbsolutePosition);
+                            tilesMap.markBottomBlocked(normalizedAbsolutePosition);
+                            tilesMap.markLeftBlocked(normalizedAbsolutePosition);
                             break;
                     }
                 } else if (location.getType() == 9) {
                     // All sides blocked
-                    obstaclesMap.markAllSidesBlocked(normalizedAbsolutePosition);
+                    tilesMap.markAllSidesBlocked(normalizedAbsolutePosition);
                 } else if (location.getType() == 10) {
                     // Game object covers tiles
                     final ObjectDefinition object = this.objectManager.getObject(location.getId());
@@ -139,7 +138,7 @@ public class MovementDumperRewrite {
                     for (int dx = 0; dx < width; dx++) {
                         for (int dy = 0; dy < height; dy++) {
                             final Position position = new Position(normalizedAbsolutePosition.getX() + dx, normalizedAbsolutePosition.getY() + dy, normalizedAbsolutePosition.getZ());
-                            obstaclesMap.markAllSidesBlocked(position);
+                            tilesMap.markAllSidesBlocked(position);
                         }
                     }
                 }
@@ -149,8 +148,8 @@ public class MovementDumperRewrite {
         // Write result to weird format
         logger.info("writing dump");
         final MovementDump movementDump = new MovementDump();
-        obstaclesMap.writeToMovementDump(movementDump);
-        movementDump.walkable = walkableTiles;
+        tilesMap.writeToMovementDump(movementDump);
+        movementDump.walkable = new LinkedList<>(tilesMap.map.keySet());
         final String output = new Gson().toJson(movementDump);
         try (final FileOutputStream out = new FileOutputStream(OUTPUT_FILE_ARCHIVE);
              final ZipOutputStream zipOut = new ZipOutputStream(out)) {
@@ -201,23 +200,39 @@ public class MovementDumperRewrite {
         }
     }
 
-    private static class ObstaclesMap {
+    private static class TilesMap {
         private final HashMap<Position, TileObstacles> map = new HashMap<>();
 
+        public void addTile(Position absolutePosition) {
+            this.map.put(absolutePosition, new TileObstacles());
+        }
+
         public void markLeftBlocked(Position absolutePosition) {
-            this.getObstacle(absolutePosition).leftBlocked = true;
+            final TileObstacles obstacle = this.map.get(absolutePosition);
+            if(obstacle != null) {
+                obstacle.leftBlocked = true;
+            }
         }
 
         public void markRightBlocked(Position absolutePosition) {
-            this.getObstacle(absolutePosition).rightBlocked = true;
+            final TileObstacles obstacle = this.map.get(absolutePosition);
+            if(obstacle != null) {
+                obstacle.rightBlocked = true;
+            }
         }
 
         public void markTopBlocked(Position absolutePosition) {
-            this.getObstacle(absolutePosition).topBlocked = true;
+            final TileObstacles obstacle = this.map.get(absolutePosition);
+            if(obstacle != null) {
+                obstacle.topBlocked = true;
+            }
         }
 
         public void markBottomBlocked(Position absolutePosition) {
-            this.getObstacle(absolutePosition).bottomBlocked = true;
+            final TileObstacles obstacle = this.map.get(absolutePosition);
+            if(obstacle != null) {
+                obstacle.bottomBlocked = true;
+            }
         }
 
         public void markAllSidesBlocked(Position absolutePosition) {
@@ -228,13 +243,11 @@ public class MovementDumperRewrite {
         }
 
         public void writeToMovementDump(MovementDump movementDump) {
-            movementDump.obstaclePositions = new Position[this.map.size()];
-            movementDump.obstacleValues = new int[this.map.size()];
-            int index = 0;
+            List<Position> obstaclePositions = new LinkedList<>();
+            List<Integer> obstacleValues = new LinkedList<>();
             for (Map.Entry<Position, TileObstacles> entry : this.map.entrySet()) {
-                Position position = entry.getKey();
-                TileObstacles obstacle = entry.getValue();
-                movementDump.obstaclePositions[index] = position;
+                final Position position = entry.getKey();
+                final TileObstacles obstacle = entry.getValue();
                 int obstacleValue = 0;
                 if (obstacle.topBlocked) {
                     obstacleValue += 1;
@@ -248,16 +261,13 @@ public class MovementDumperRewrite {
                 if (obstacle.leftBlocked) {
                     obstacleValue += 8;
                 }
-                movementDump.obstacleValues[index] = obstacleValue;
-                index++;
+                if(obstacleValue != 0) {
+                    obstaclePositions.add(position);
+                    obstacleValues.add(obstacleValue);
+                }
             }
-        }
-
-        private TileObstacles getObstacle(Position absolutePosition) {
-            if (!this.map.containsKey(absolutePosition)) {
-                this.map.put(absolutePosition, new TileObstacles());
-            }
-            return this.map.get(absolutePosition);
+            movementDump.obstaclePositions = obstaclePositions;
+            movementDump.obstacleValues = obstacleValues;
         }
     }
 
@@ -270,7 +280,7 @@ public class MovementDumperRewrite {
 
     private static class MovementDump {
         List<Position> walkable;
-        Position[] obstaclePositions;
-        int[] obstacleValues;
+        List<Position> obstaclePositions;
+        List<Integer> obstacleValues;
     }
 }
