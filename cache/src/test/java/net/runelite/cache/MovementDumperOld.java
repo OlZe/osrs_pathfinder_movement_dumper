@@ -24,11 +24,18 @@ import org.junit.rules.TemporaryFolder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class MovementDumper
+/**
+ * This is the original movement dumper given to me by cook
+ * It outputs into an old JSON format
+ * It also only scrapes data on plane z = 0
+ * @deprecated use {@link MovementDumperRewrite} instead
+ */
+@Deprecated
+public class MovementDumperOld
 {
-    private static final Logger logger = LoggerFactory.getLogger(MovementDumper.class);
+    private static final Logger logger = LoggerFactory.getLogger(MovementDumperOld.class);
 
-//    private static final int MAX_REGIONS = 32768;
+    private static final int MAX_REGIONS = 32768;
 
     @Rule
     public TemporaryFolder folder = StoreLocation.getTemporaryFolder();
@@ -46,6 +53,7 @@ public class MovementDumper
 
     }
     @Test
+    @Ignore
     public void loadRegions() throws IOException
     {
 
