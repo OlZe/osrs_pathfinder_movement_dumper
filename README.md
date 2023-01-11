@@ -8,6 +8,6 @@ It uses the [runelite project](https://github.com/runelite/runelite) to extract 
 
 Download the latest [OSRS cache files](https://archive.runestats.com/osrs/) and extract them. Modify `xteas.json` such that the fields `mapsquare` and `key` are renamed into `region` and `keys` respectively.
 
-Modify the [MovementDumper](https://github.com/OlZe/osrs_pathfinder_movement_dumper/blob/MovementDumper/cache/src/test/java/net/runelite/cache/MovementDumper.java) class such that the constants `CACHE_DIR`, `XTEAKEYS_FILE` and `OUTPUT_FILE_ARCHIVE` point to the right locations.
+Modify the [MovementDumper](https://github.com/OlZe/osrs_pathfinder_movement_dumper/blob/MovementDumper/cache/src/test/java/net/runelite/cache/movementdumper/MovementDumper.java) class such that the constants `CACHE_DIR`, `XTEAKEYS_FILE` and `OUTPUT_FILE_ARCHIVE` point to the right locations.
 
-Run `net.runelite.cache.MovementDumper::extractAndDumpMovementData` as a Test.
+Run `net.runelite.cache.movementdumper.MovementDumper::extractAndDumpMovementData` as a Test.

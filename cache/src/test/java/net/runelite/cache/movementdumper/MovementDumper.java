@@ -1,6 +1,7 @@
-package net.runelite.cache;
+package net.runelite.cache.movementdumper;
 
 import com.google.gson.Gson;
+import net.runelite.cache.ObjectManager;
 import net.runelite.cache.definitions.ObjectDefinition;
 import net.runelite.cache.fs.Store;
 import net.runelite.cache.region.Location;
@@ -13,20 +14,19 @@ import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
-import java.io.IOException;
+import java.io.*;
 import java.nio.charset.StandardCharsets;
-import java.util.*;
+import java.util.Collection;
+import java.util.LinkedList;
+import java.util.Map;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
 public class MovementDumper {
     private static final String CACHE_DIR = "C:\\Users\\Oli\\Desktop\\Code\\OSRS Navigator\\wiki maps pathfinding project\\movement dumper\\2022-12-13-rev210\\cache";
     private static final String XTEAKEYS_FILE = "C:\\Users\\Oli\\Desktop\\Code\\OSRS Navigator\\wiki maps pathfinding project\\movement dumper\\2022-12-13-rev210\\xteas_old_format.json";
-    private static final String OUTPUT_FILE_ARCHIVE = "C:\\Users\\Oli\\Desktop\\Code\\OSRS Navigator\\wiki maps pathfinding project\\spring restructure\\pathfinder\\src\\main\\resources\\movement.json.zip";
-    private static final String OUTPUT_FILE_ARCHIVE_ENTRY = "movement.json";
+    private static final String OUTPUT_FILE_ARCHIVE = "C:\\Users\\Oli\\Desktop\\Code\\OSRS Navigator\\wiki maps pathfinding project\\spring restructure\\pathfinder\\src\\main\\resources\\movement.csv.zip";
+    private static final String OUTPUT_FILE_ARCHIVE_ENTRY = "movement.csv";
     private static final int REGION_SIZE = 64;
 
     private final Logger logger = LoggerFactory.getLogger(MovementDumper.class);
@@ -191,7 +191,6 @@ public class MovementDumper {
         }
     }
 
-
     private void init() throws IOException {
         final Store cacheStore = new Store(new File(CACHE_DIR));
         cacheStore.load();
@@ -211,80 +210,34 @@ public class MovementDumper {
         this.objectManager = objectManager;
     }
 
-    private static class TileSettings {
-        public final boolean isWalkable;
-        public final boolean isBlocked;
-        public final boolean isBridge;
-        public final boolean isBridgeAbove;
-
-        public TileSettings(Region region, Position relativePosition) {
-            final int tileSetting = region.getTileSetting(relativePosition.getZ(), relativePosition.getX(), relativePosition.getY());
-            this.isWalkable = (tileSetting & 1) == 0;
-            this.isBlocked = (tileSetting & 24) != 0;
-            this.isBridge = (tileSetting & 2) != 0;
-            if (relativePosition.getZ() < 3) {
-                this.isBridgeAbove = (region.getTileSetting(relativePosition.getZ() + 1, relativePosition.getX(), relativePosition.getY()) & 2) != 0;
-            } else {
-                this.isBridgeAbove = false;
-            }
-        }
-    }
-
-    private static class TilesMap {
-        private final HashMap<Position, TileObstacles> map = new HashMap<>();
-
-        public void addTile(Position absolutePosition) {
-            this.map.put(absolutePosition, new TileObstacles());
-        }
-
-        public void markLeftBlocked(Position absolutePosition) {
-            final TileObstacles obstacle = this.map.get(absolutePosition);
-            if (obstacle != null) {
-                obstacle.leftBlocked = true;
-            }
-        }
-
-        public void markRightBlocked(Position absolutePosition) {
-            final TileObstacles obstacle = this.map.get(absolutePosition);
-            if (obstacle != null) {
-                obstacle.rightBlocked = true;
-            }
-        }
-
-        public void markTopBlocked(Position absolutePosition) {
-            final TileObstacles obstacle = this.map.get(absolutePosition);
-            if (obstacle != null) {
-                obstacle.topBlocked = true;
-            }
-        }
-
-        public void markBottomBlocked(Position absolutePosition) {
-            final TileObstacles obstacle = this.map.get(absolutePosition);
-            if (obstacle != null) {
-                obstacle.bottomBlocked = true;
-            }
-        }
-
-        public void markAllSidesBlocked(Position absolutePosition) {
-            this.markLeftBlocked(absolutePosition);
-            this.markRightBlocked(absolutePosition);
-            this.markTopBlocked(absolutePosition);
-            this.markBottomBlocked(absolutePosition);
-        }
-
-    }
-
-    private static class TileObstacles {
-        public boolean rightBlocked = false;
-        public boolean leftBlocked = false;
-        public boolean topBlocked = false;
-        public boolean bottomBlocked = false;
-    }
-
     @Deprecated
-    private static class MovementDump {
-        Collection<Position> walkable;
-        Collection<Position> obstaclePositions;
-        Collection<Integer> obstacleValues;
+    private String prepareMovementDump(final TilesMap tilesMap) {
+        final MovementDump movementDump = new MovementDump();
+        movementDump.walkable = tilesMap.map.keySet();
+        movementDump.obstaclePositions = new LinkedList<>();
+        movementDump.obstacleValues = new LinkedList<>();
+        for (Map.Entry<Position, TileObstacles> entry : tilesMap.map.entrySet()) {
+            final Position position = entry.getKey();
+            final TileObstacles obstacle = entry.getValue();
+            int obstacleValue = 0;
+            if (obstacle.topBlocked) {
+                obstacleValue += 1;
+            }
+            if (obstacle.rightBlocked) {
+                obstacleValue += 2;
+            }
+            if (obstacle.bottomBlocked) {
+                obstacleValue += 4;
+            }
+            if (obstacle.leftBlocked) {
+                obstacleValue += 8;
+            }
+            if (obstacleValue != 0) {
+                movementDump.obstaclePositions.add(position);
+                movementDump.obstacleValues.add(obstacleValue);
+            }
+        }
+        return new Gson().toJson(movementDump);
     }
+
 }

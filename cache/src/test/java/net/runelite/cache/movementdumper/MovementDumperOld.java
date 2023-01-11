@@ -1,4 +1,4 @@
-package net.runelite.cache;
+package net.runelite.cache.movementdumper;
 
 import com.google.common.io.Files;
 import com.google.gson.Gson;
@@ -7,6 +7,8 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 
+import net.runelite.cache.ObjectManager;
+import net.runelite.cache.StoreLocation;
 import net.runelite.cache.definitions.ObjectDefinition;
 import net.runelite.cache.region.Location;
 import java.nio.charset.Charset;
