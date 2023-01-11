@@ -50,42 +50,38 @@ public class MovementDumper {
         this.gatherObstacles(tilesMap);
 
         logger.info("writing dump");
-        // Write result to old format
-        final String output = this.prepareMovementDump(tilesMap);
-        // TODO
-        // final String output = this.prepareCsvDump(tilesMap);
-        this.writeToZip(output);
+        this.writeCsvDump(tilesMap);
         logger.info("done");
     }
 
-    @Deprecated
-    private String prepareMovementDump(final TilesMap tilesMap) {
-        final MovementDump movementDump = new MovementDump();
-        movementDump.walkable = tilesMap.map.keySet();
-        movementDump.obstaclePositions = new LinkedList<>();
-        movementDump.obstacleValues = new LinkedList<>();
-        for (Map.Entry<Position, TileObstacles> entry : tilesMap.map.entrySet()) {
-            final Position position = entry.getKey();
-            final TileObstacles obstacle = entry.getValue();
-            int obstacleValue = 0;
-            if (obstacle.topBlocked) {
-                obstacleValue += 1;
-            }
-            if (obstacle.rightBlocked) {
-                obstacleValue += 2;
-            }
-            if (obstacle.bottomBlocked) {
-                obstacleValue += 4;
-            }
-            if (obstacle.leftBlocked) {
-                obstacleValue += 8;
-            }
-            if (obstacleValue != 0) {
-                movementDump.obstaclePositions.add(position);
-                movementDump.obstacleValues.add(obstacleValue);
+    private void writeCsvDump(final TilesMap tilesMap) throws IOException {
+        try (final FileOutputStream fileOut = new FileOutputStream(OUTPUT_FILE_ARCHIVE);
+             final ZipOutputStream zipOut = new ZipOutputStream(fileOut);
+             final OutputStreamWriter writerOut = new OutputStreamWriter(zipOut, StandardCharsets.UTF_8);
+             final BufferedWriter out = new BufferedWriter(writerOut)) {
+
+            final ZipEntry zipEntry = new ZipEntry(OUTPUT_FILE_ARCHIVE_ENTRY);
+            zipOut.putNextEntry(zipEntry);
+            out.write("# x,y,z,topBlocked,rightBlocked,bottomBlocked,leftBlocked");
+            for (Map.Entry<Position, TileObstacles> entry : tilesMap.map.entrySet()) {
+                final Position position = entry.getKey();
+                final TileObstacles tileObstacles = entry.getValue();
+                out.write('\n');
+                out.write(Integer.toString(position.getX()));
+                out.write(',');
+                out.write(Integer.toString(position.getY()));
+                out.write(',');
+                out.write(Integer.toString(position.getZ()));
+                out.write(',');
+                out.write(Boolean.toString(tileObstacles.topBlocked));
+                out.write(',');
+                out.write(Boolean.toString(tileObstacles.rightBlocked));
+                out.write(',');
+                out.write(Boolean.toString(tileObstacles.bottomBlocked));
+                out.write(',');
+                out.write(Boolean.toString(tileObstacles.leftBlocked));
             }
         }
-        return new Gson().toJson(movementDump);
     }
 
     private void gatherWalkableTiles(final TilesMap tilesMap) {
@@ -107,15 +103,6 @@ public class MovementDumper {
                     }
                 }
             }
-        }
-    }
-
-    private void writeToZip(final String output) throws IOException {
-        try (final FileOutputStream out = new FileOutputStream(OUTPUT_FILE_ARCHIVE); final ZipOutputStream zipOut = new ZipOutputStream(out)) {
-            ZipEntry zipEntry = new ZipEntry(OUTPUT_FILE_ARCHIVE_ENTRY);
-            zipOut.putNextEntry(zipEntry);
-            zipOut.write(output.getBytes(StandardCharsets.UTF_8));
-            zipOut.closeEntry();
         }
     }
 
