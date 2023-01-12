@@ -3,7 +3,7 @@ package net.runelite.cache.movementdumper;
 import net.runelite.cache.region.Position;
 import net.runelite.cache.region.Region;
 
-public class PositionUtils {
+class PositionUtils {
     public static Position toRelative(final Region region, final Position absolutePosition) {
         return new Position(
                 absolutePosition.getX() - region.getBaseX(),

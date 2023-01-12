@@ -4,7 +4,7 @@ import net.runelite.cache.region.Position;
 
 import java.util.HashMap;
 
-public class WalkableTilesMap {
+class WalkableTilesMap {
     public final HashMap<Position, TileObstacles> map = new HashMap<>();
 
     public void addWalkableTile(Position normalizedAbsolutePosition) {
