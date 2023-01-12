@@ -25,7 +25,6 @@ public class MovementDumper {
     private static final String XTEAKEYS_FILE = "C:\\Users\\Oli\\Desktop\\Code\\OSRS Navigator\\wiki maps pathfinding project\\movement dumper\\2022-12-13-rev210\\xteas_old_format.json";
     private static final String OUTPUT_FILE_ARCHIVE = "C:\\Users\\Oli\\Desktop\\Code\\OSRS Navigator\\wiki maps pathfinding project\\spring restructure\\pathfinder\\src\\main\\resources\\movement.csv.zip";
     private static final String OUTPUT_FILE_ARCHIVE_ENTRY = "movement.csv";
-    private static final int REGION_SIZE = 64;
 
     private final Logger logger = LoggerFactory.getLogger(MovementDumper.class);
 
@@ -84,9 +83,9 @@ public class MovementDumper {
 
     private void gatherWalkableTiles(final WalkableTilesMap walkableTilesMap) {
         for (Region region : this.regions) {
-            for (int dx = 0; dx < REGION_SIZE; dx++) {
-                for (int dy = 0; dy < REGION_SIZE; dy++) {
-                    for (int z = 0; z <= 3; z++) {
+            for (int dx = 0; dx < Region.X; dx++) {
+                for (int dy = 0; dy < Region.Y; dy++) {
+                    for (int z = 0; z < Region.Z; z++) {
                         final Position relativePosition = new Position(dx, dy, z);
                         final TileSettings tileSettings = new TileSettings(region, relativePosition);
                         if (!tileSettings.isWalkable || tileSettings.isBlocked || tileSettings.isBridgeAbove) {
@@ -103,13 +102,8 @@ public class MovementDumper {
     private void gatherObstacles(final WalkableTilesMap walkableTilesMap) {
         for (Region region : this.regions) {
             for (Location location : region.getLocations()) {
-                final Position relativePosition = PositionUtils.toRelative(region, location.getPosition());
-
-                final TileSettings tileSettings = new TileSettings(region, relativePosition);
-                if (tileSettings.isBlocked || tileSettings.isBridgeAbove) {
-                    continue;
-                }
-                final Position normalizedAbsolutePosition = PositionUtils.toNormalizedAbsolute(relativePosition, region, tileSettings.isBridge);
+                final TileSettings tileSettings = new TileSettings(region, PositionUtils.toRelative(region, location.getPosition()));
+                final Position normalizedAbsolutePosition = PositionUtils.normalize(location.getPosition(), tileSettings.isBridge);
 
                 if (location.getType() == 0) {
                     // Lateral direction blocked
