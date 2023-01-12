@@ -1,6 +1,5 @@
 package net.runelite.cache.movementdumper;
 
-import com.google.gson.Gson;
 import net.runelite.cache.ObjectManager;
 import net.runelite.cache.definitions.ObjectDefinition;
 import net.runelite.cache.fs.Store;
@@ -17,7 +16,6 @@ import org.slf4j.LoggerFactory;
 import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.util.Collection;
-import java.util.LinkedList;
 import java.util.Map;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
@@ -187,35 +185,4 @@ public class MovementDumper {
         this.regions = regionLoader.getRegions();
         this.objectManager = objectManager;
     }
-
-    @Deprecated
-    private String prepareMovementDump(final WalkableTilesMap walkableTilesMap) {
-        final MovementDump movementDump = new MovementDump();
-        movementDump.walkable = walkableTilesMap.map.keySet();
-        movementDump.obstaclePositions = new LinkedList<>();
-        movementDump.obstacleValues = new LinkedList<>();
-        for (Map.Entry<Position, TileObstacles> entry : walkableTilesMap.map.entrySet()) {
-            final Position position = entry.getKey();
-            final TileObstacles obstacle = entry.getValue();
-            int obstacleValue = 0;
-            if (obstacle.topBlocked) {
-                obstacleValue += 1;
-            }
-            if (obstacle.rightBlocked) {
-                obstacleValue += 2;
-            }
-            if (obstacle.bottomBlocked) {
-                obstacleValue += 4;
-            }
-            if (obstacle.leftBlocked) {
-                obstacleValue += 8;
-            }
-            if (obstacleValue != 0) {
-                movementDump.obstaclePositions.add(position);
-                movementDump.obstacleValues.add(obstacleValue);
-            }
-        }
-        return new Gson().toJson(movementDump);
-    }
-
 }
