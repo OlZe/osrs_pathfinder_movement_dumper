@@ -41,20 +41,20 @@ public class MovementDumper {
         this.init();
         logger.info("Init done");
 
-        final TilesMap tilesMap = new TilesMap();
+        final WalkableTilesMap walkableTilesMap = new WalkableTilesMap();
 
         logger.info("Gathering walkable tiles");
-        this.gatherWalkableTiles(tilesMap);
+        this.gatherWalkableTiles(walkableTilesMap);
 
         logger.info("Gathering obstacles");
-        this.gatherObstacles(tilesMap);
+        this.gatherObstacles(walkableTilesMap);
 
         logger.info("writing dump");
-        this.writeCsvDump(tilesMap);
+        this.writeCsvDump(walkableTilesMap);
         logger.info("done");
     }
 
-    private void writeCsvDump(final TilesMap tilesMap) throws IOException {
+    private void writeCsvDump(final WalkableTilesMap walkableTilesMap) throws IOException {
         try (final FileOutputStream fileOut = new FileOutputStream(OUTPUT_FILE_ARCHIVE);
              final ZipOutputStream zipOut = new ZipOutputStream(fileOut);
              final OutputStreamWriter writerOut = new OutputStreamWriter(zipOut, StandardCharsets.UTF_8);
@@ -63,7 +63,7 @@ public class MovementDumper {
             final ZipEntry zipEntry = new ZipEntry(OUTPUT_FILE_ARCHIVE_ENTRY);
             zipOut.putNextEntry(zipEntry);
             out.write("# x,y,z,topBlocked,rightBlocked,bottomBlocked,leftBlocked");
-            for (Map.Entry<Position, TileObstacles> entry : tilesMap.map.entrySet()) {
+            for (Map.Entry<Position, TileObstacles> entry : walkableTilesMap.map.entrySet()) {
                 final Position position = entry.getKey();
                 final TileObstacles tileObstacles = entry.getValue();
                 out.write('\n');
@@ -84,83 +84,74 @@ public class MovementDumper {
         }
     }
 
-    private void gatherWalkableTiles(final TilesMap tilesMap) {
+    private void gatherWalkableTiles(final WalkableTilesMap walkableTilesMap) {
         for (Region region : this.regions) {
             for (int dx = 0; dx < REGION_SIZE; dx++) {
                 for (int dy = 0; dy < REGION_SIZE; dy++) {
                     for (int z = 0; z <= 3; z++) {
-                        final TileSettings tileSettings = new TileSettings(region, new Position(dx, dy, z));
+                        final Position relativePosition = new Position(dx, dy, z);
+                        final TileSettings tileSettings = new TileSettings(region, relativePosition);
                         if (!tileSettings.isWalkable || tileSettings.isBlocked || tileSettings.isBridgeAbove) {
                             continue;
                         }
-                        final Position normalizedAbsolutePos = new Position(region.getBaseX() + dx, region.getBaseY() + dy, tileSettings.isBridge ? z - 1 : z);
-
-                        // Filter z = 0
-                        if (normalizedAbsolutePos.getZ() != 0) {
-                            continue;
-                        }
-                        tilesMap.addTile(normalizedAbsolutePos);
+                        final Position normalizedAbsolutePos = PositionUtils.toNormalizedAbsolute(relativePosition, region, tileSettings.isBridge);
+                        walkableTilesMap.addWalkableTile(normalizedAbsolutePos);
                     }
                 }
             }
         }
     }
 
-    private void gatherObstacles(final TilesMap tilesMap) {
+    private void gatherObstacles(final WalkableTilesMap walkableTilesMap) {
         for (Region region : this.regions) {
             for (Location location : region.getLocations()) {
-                final Position relativePosition = new Position(location.getPosition().getX() - region.getBaseX(), location.getPosition().getY() - region.getBaseY(), location.getPosition().getZ());
+                final Position relativePosition = PositionUtils.toRelative(region, location.getPosition());
 
                 final TileSettings tileSettings = new TileSettings(region, relativePosition);
                 if (tileSettings.isBlocked || tileSettings.isBridgeAbove) {
                     continue;
                 }
-                final Position normalizedAbsolutePosition = new Position(location.getPosition().getX(), location.getPosition().getY(), tileSettings.isBridge ? location.getPosition().getZ() - 1 : location.getPosition().getZ());
-
-                // Filter
-                if (normalizedAbsolutePosition.getZ() != 0) {
-                    continue;
-                }
+                final Position normalizedAbsolutePosition = PositionUtils.toNormalizedAbsolute(relativePosition, region, tileSettings.isBridge);
 
                 if (location.getType() == 0) {
                     // Lateral direction blocked
                     switch (location.getOrientation()) {
                         case 0:
-                            tilesMap.markLeftBlocked(normalizedAbsolutePosition);
+                            walkableTilesMap.markLeftBlocked(normalizedAbsolutePosition);
                             break;
                         case 1:
-                            tilesMap.markTopBlocked(normalizedAbsolutePosition);
+                            walkableTilesMap.markTopBlocked(normalizedAbsolutePosition);
                             break;
                         case 2:
-                            tilesMap.markRightBlocked(normalizedAbsolutePosition);
+                            walkableTilesMap.markRightBlocked(normalizedAbsolutePosition);
                             break;
                         case 3:
-                            tilesMap.markBottomBlocked(normalizedAbsolutePosition);
+                            walkableTilesMap.markBottomBlocked(normalizedAbsolutePosition);
                             break;
                     }
                 } else if (location.getType() == 2) {
                     // Diagonal direction blocked, blocks both lateral ways
                     switch (location.getOrientation()) {
                         case 0:
-                            tilesMap.markTopBlocked(normalizedAbsolutePosition);
-                            tilesMap.markLeftBlocked(normalizedAbsolutePosition);
+                            walkableTilesMap.markTopBlocked(normalizedAbsolutePosition);
+                            walkableTilesMap.markLeftBlocked(normalizedAbsolutePosition);
                             break;
                         case 1:
-                            tilesMap.markTopBlocked(normalizedAbsolutePosition);
-                            tilesMap.markRightBlocked(normalizedAbsolutePosition);
+                            walkableTilesMap.markTopBlocked(normalizedAbsolutePosition);
+                            walkableTilesMap.markRightBlocked(normalizedAbsolutePosition);
                             break;
                         case 2:
-                            tilesMap.markBottomBlocked(normalizedAbsolutePosition);
-                            tilesMap.markRightBlocked(normalizedAbsolutePosition);
+                            walkableTilesMap.markBottomBlocked(normalizedAbsolutePosition);
+                            walkableTilesMap.markRightBlocked(normalizedAbsolutePosition);
                             break;
                         case 3:
-                            tilesMap.markBottomBlocked(normalizedAbsolutePosition);
-                            tilesMap.markLeftBlocked(normalizedAbsolutePosition);
+                            walkableTilesMap.markBottomBlocked(normalizedAbsolutePosition);
+                            walkableTilesMap.markLeftBlocked(normalizedAbsolutePosition);
                             break;
                     }
                 } else if (location.getType() == 9) {
                     // All sides blocked
-                    tilesMap.markAllSidesBlocked(normalizedAbsolutePosition);
+                    walkableTilesMap.markAllSidesBlocked(normalizedAbsolutePosition);
                 } else if (location.getType() == 10) {
                     // Game object covers tiles
                     final ObjectDefinition object = this.objectManager.getObject(location.getId());
@@ -169,8 +160,8 @@ public class MovementDumper {
 
                     for (int dx = 0; dx < width; dx++) {
                         for (int dy = 0; dy < height; dy++) {
-                            final Position position = new Position(normalizedAbsolutePosition.getX() + dx, normalizedAbsolutePosition.getY() + dy, normalizedAbsolutePosition.getZ());
-                            tilesMap.markAllSidesBlocked(position);
+                            final Position current = PositionUtils.move(normalizedAbsolutePosition, dx, dy, 0);
+                            walkableTilesMap.markAllSidesBlocked(current);
                         }
                     }
                 }
@@ -198,12 +189,12 @@ public class MovementDumper {
     }
 
     @Deprecated
-    private String prepareMovementDump(final TilesMap tilesMap) {
+    private String prepareMovementDump(final WalkableTilesMap walkableTilesMap) {
         final MovementDump movementDump = new MovementDump();
-        movementDump.walkable = tilesMap.map.keySet();
+        movementDump.walkable = walkableTilesMap.map.keySet();
         movementDump.obstaclePositions = new LinkedList<>();
         movementDump.obstacleValues = new LinkedList<>();
-        for (Map.Entry<Position, TileObstacles> entry : tilesMap.map.entrySet()) {
+        for (Map.Entry<Position, TileObstacles> entry : walkableTilesMap.map.entrySet()) {
             final Position position = entry.getKey();
             final TileObstacles obstacle = entry.getValue();
             int obstacleValue = 0;

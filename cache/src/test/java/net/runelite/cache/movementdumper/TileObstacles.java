@@ -5,4 +5,8 @@ public class TileObstacles {
     public boolean leftBlocked = false;
     public boolean topBlocked = false;
     public boolean bottomBlocked = false;
+
+    public boolean allDirectionsBlocked() {
+        return this.rightBlocked && this.leftBlocked && this.topBlocked && this.bottomBlocked;
+    }
 }
