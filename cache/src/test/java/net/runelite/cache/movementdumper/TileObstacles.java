@@ -1,12 +1,12 @@
 package net.runelite.cache.movementdumper;
 
 class TileObstacles {
-    public boolean rightBlocked = false;
-    public boolean leftBlocked = false;
-    public boolean topBlocked = false;
-    public boolean bottomBlocked = false;
+    public boolean eastBlocked = false;
+    public boolean westBlocked = false;
+    public boolean northBlocked = false;
+    public boolean southBlocked = false;
 
     public boolean allDirectionsBlocked() {
-        return this.rightBlocked && this.leftBlocked && this.topBlocked && this.bottomBlocked;
+        return this.eastBlocked && this.westBlocked && this.northBlocked && this.southBlocked;
     }
 }

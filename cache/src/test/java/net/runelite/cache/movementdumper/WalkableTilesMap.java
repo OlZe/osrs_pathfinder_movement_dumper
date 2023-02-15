@@ -18,7 +18,7 @@ class WalkableTilesMap {
     public void markLeftBlocked(Position normalizedAbsolutePosition) {
         final TileObstacles obstacle = this.map.get(normalizedAbsolutePosition);
         if (obstacle != null) {
-            obstacle.leftBlocked = true;
+            obstacle.westBlocked = true;
             this.removeIfAllBlocked(normalizedAbsolutePosition);
         }
     }
@@ -26,7 +26,7 @@ class WalkableTilesMap {
     public void markRightBlocked(Position normalizedAbsolutePosition) {
         final TileObstacles obstacle = this.map.get(normalizedAbsolutePosition);
         if (obstacle != null) {
-            obstacle.rightBlocked = true;
+            obstacle.eastBlocked = true;
             this.removeIfAllBlocked(normalizedAbsolutePosition);
         }
     }
@@ -34,7 +34,7 @@ class WalkableTilesMap {
     public void markTopBlocked(Position normalizedAbsolutePosition) {
         final TileObstacles obstacle = this.map.get(normalizedAbsolutePosition);
         if (obstacle != null) {
-            obstacle.topBlocked = true;
+            obstacle.northBlocked = true;
             this.removeIfAllBlocked(normalizedAbsolutePosition);
         }
     }
@@ -42,7 +42,7 @@ class WalkableTilesMap {
     public void markBottomBlocked(Position normalizedAbsolutePosition) {
         final TileObstacles obstacle = this.map.get(normalizedAbsolutePosition);
         if (obstacle != null) {
-            obstacle.bottomBlocked = true;
+            obstacle.southBlocked = true;
             this.removeIfAllBlocked(normalizedAbsolutePosition);
         }
     }
