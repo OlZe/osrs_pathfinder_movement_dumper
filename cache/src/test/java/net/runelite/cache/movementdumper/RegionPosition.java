@@ -5,31 +5,75 @@ import net.runelite.cache.region.Region;
 
 import java.util.Objects;
 
+/**
+ * This is an abstraction which represents one game tile/square/position in the game.
+ * It uses {@link Region#getTileSetting(int, int, int)} and {@link Region#getLocations()} to populate movement data.
+ * It handles the "bridge-flag" under the hood.
+ * {@link PositionUtils} provides useful manipulation functions.
+ */
 public class RegionPosition {
     public final Position relativePosition;
     public final Region region;
-    public final TileSettings tileSettings;
     public final TileObstacles obstacles;
+    private final TileSettings tileSettings;
+    private final boolean isBridgeAbove;
 
 
     public RegionPosition(Position relativePosition, Region region) {
         this.relativePosition = relativePosition;
         this.region = region;
-        this.tileSettings = new TileSettings(region, relativePosition);
+
+        final TileSettings tileSettings = new TileSettings(region, relativePosition);
+        /* bridge-flag means that the position data is applied on z-1.
+            therefore isBridgeAbove on *this* position means that the data is on z+1.
+            In that case this class will take the position data from z+1 to hide all that bridge nonsense.
+
+            Realistically a tile with isBridge==true should never be reached, because a tile with isBridge==true
+            applies to z-1. Therefore, a player would reach the bridge from the z-1 plane, which means that
+            RegionPositions should only ever be created on that lower plane.
+
+            There are however cases where the bridge-flag is, seemingly randomly, set for some specific tiles
+            such as at position 2972,3456,0 where it has no effect because bridges on z=0 don't exist.
+         */
+        this.isBridgeAbove = tileSettings.isBridgeAbove;
+
+        if(this.isBridgeAbove) {
+            // Get the tile settings from z+1
+            this.tileSettings = new TileSettings(region, PositionUtils.move(relativePosition, 0, 0, 1));
+            assert this.tileSettings.isBridge;
+        }
+        else {
+            this.tileSettings = tileSettings;
+        }
+
+        // Only happens if there's 2 bridges directly ontop of each other which should never happen.
+        assert !this.tileSettings.isBridgeAbove;
+
         this.obstacles = getObstacles();
     }
 
     public boolean isWalkable() {
         return !this.obstacles.allDirectionsBlocked()
                 && this.tileSettings.isWalkable
-                && !this.tileSettings.isBlocked
-                && !this.tileSettings.isBridgeAbove;
+                && !this.tileSettings.isBlocked;
     }
 
     private TileObstacles getObstacles() {
         final TileObstacles tileObstacles = new TileObstacles();
+
+        // Obstacles are found using absolute positions
+        final Position absolutePosition;
+
+        if(!this.isBridgeAbove) {
+            absolutePosition = PositionUtils.toAbsolute(this);
+        }
+        else {
+            // Get the obstacles from z+1
+            absolutePosition = PositionUtils.move(PositionUtils.toAbsolute(this), 0, 0, 1);
+        }
+
         region.getLocations().stream()
-                .filter(l -> l.getPosition().equals(PositionUtils.toAbsolute(this)))
+                .filter(l -> l.getPosition().equals(absolutePosition))
                 .forEachOrdered(location -> {
                     if (location.getType() == 0) {
                         // Lateral direction blocked

@@ -18,8 +18,8 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
 public class MovementDumper {
-    private static final String CACHE_DIR = "C:\\Users\\Oli\\Desktop\\Code\\OSRS Navigator\\wiki maps pathfinding project\\movement dumper\\2022-12-13-rev210\\cache";
-    private static final String XTEAKEYS_FILE = "C:\\Users\\Oli\\Desktop\\Code\\OSRS Navigator\\wiki maps pathfinding project\\movement dumper\\2022-12-13-rev210\\xteas_old_format.json";
+    private static final String CACHE_DIR = "C:\\Users\\Oli\\Desktop\\Code\\OSRS Navigator\\wiki maps pathfinding project\\movement dumper\\2023-02-15-rev211\\cache";
+    private static final String XTEAKEYS_FILE = "C:\\Users\\Oli\\Desktop\\Code\\OSRS Navigator\\wiki maps pathfinding project\\movement dumper\\2023-02-15-rev211\\xteas_old_format.json";
     private static final String OUTPUT_FILE_ARCHIVE = "C:\\Users\\Oli\\Desktop\\Code\\OSRS Navigator\\wiki maps pathfinding project\\spring restructure\\pathfinder\\src\\main\\resources\\movement.csv.zip";
     private static final String OUTPUT_FILE_ARCHIVE_ENTRY = "movement.csv";
 
@@ -36,9 +36,13 @@ public class MovementDumper {
         this.init();
         logger.info("Init done");
 
-        final RegionPosition start = this.positionUtils.toRegionPosition(new Position(2644, 3334, 0));
-        final Collection<RegionPosition> bfs = this.bfs(start);
+        logger.info("Starting search");
+        final RegionPosition start = this.positionUtils.toRegionPosition(new Position(3244, 3226, 0));
+        final Collection<RegionPosition> result = this.bfs(start);
+        logger.info("Search done: " + result.size() + " positions found.");
 
+        logger.info("writing dump");
+        this.writeCsvDump(result);
         logger.info("done");
 
 //
@@ -50,9 +54,6 @@ public class MovementDumper {
 //        logger.info("Gathering obstacles");
 //        this.gatherObstacles(walkableTilesMap);
 //
-//        logger.info("writing dump");
-//        this.writeCsvDump(walkableTilesMap);
-//        logger.info("done");
     }
 
     private Collection<RegionPosition> bfs(final RegionPosition startPosition) {
@@ -66,6 +67,7 @@ public class MovementDumper {
 
         while (openList.peek() != null) {
             final RegionPosition currentPos = openList.remove();
+
             if (closedList.contains(currentPos)) {
                 continue;
             }
@@ -73,6 +75,10 @@ public class MovementDumper {
 
             this.getDirectNeighbours(currentPos).stream()
                     .forEachOrdered(openList::add);
+
+            if(closedList.size() % 5000 == 0) {
+                logger.info("Explored " + closedList.size() + " positions.");
+            }
         }
 
         return closedList;
@@ -192,36 +198,36 @@ public class MovementDumper {
         return null;
     }
 
-//    private void writeCsvDump(final WalkableTilesMap walkableTilesMap) throws IOException {
-//        try (final FileOutputStream fileOut = new FileOutputStream(OUTPUT_FILE_ARCHIVE);
-//             final ZipOutputStream zipOut = new ZipOutputStream(fileOut);
-//             final OutputStreamWriter writerOut = new OutputStreamWriter(zipOut, StandardCharsets.UTF_8);
-//             final BufferedWriter out = new BufferedWriter(writerOut)) {
-//
-//            final ZipEntry zipEntry = new ZipEntry(OUTPUT_FILE_ARCHIVE_ENTRY);
-//            zipOut.putNextEntry(zipEntry);
-//            out.write("# x,y,z,topBlocked,rightBlocked,bottomBlocked,leftBlocked");
-//            for (Map.Entry<Position, TileObstacles> entry : walkableTilesMap.map.entrySet()) {
-//                final Position position = entry.getKey();
-//                final TileObstacles tileObstacles = entry.getValue();
-//                out.write('\n');
-//                out.write(Integer.toString(position.getX()));
-//                out.write(',');
-//                out.write(Integer.toString(position.getY()));
-//                out.write(',');
-//                out.write(Integer.toString(position.getZ()));
-//                out.write(',');
-//                out.write(Boolean.toString(tileObstacles.northBlocked));
-//                out.write(',');
-//                out.write(Boolean.toString(tileObstacles.eastBlocked));
-//                out.write(',');
-//                out.write(Boolean.toString(tileObstacles.southBlocked));
-//                out.write(',');
-//                out.write(Boolean.toString(tileObstacles.westBlocked));
-//            }
-//        }
-//    }
-//
+    private void writeCsvDump(final Collection<RegionPosition> regionPositions) throws IOException {
+        try (final FileOutputStream fileOut = new FileOutputStream(OUTPUT_FILE_ARCHIVE);
+             final ZipOutputStream zipOut = new ZipOutputStream(fileOut);
+             final OutputStreamWriter writerOut = new OutputStreamWriter(zipOut, StandardCharsets.UTF_8);
+             final BufferedWriter out = new BufferedWriter(writerOut)) {
+
+            final ZipEntry zipEntry = new ZipEntry(OUTPUT_FILE_ARCHIVE_ENTRY);
+            zipOut.putNextEntry(zipEntry);
+            out.write("# x,y,z,topBlocked,rightBlocked,bottomBlocked,leftBlocked");
+            for (RegionPosition regionPosition : regionPositions) {
+                final Position absolutePosition = PositionUtils.toAbsolute(regionPosition);
+
+                out.write('\n');
+                out.write(Integer.toString(absolutePosition.getX()));
+                out.write(',');
+                out.write(Integer.toString(absolutePosition.getY()));
+                out.write(',');
+                out.write(Integer.toString(absolutePosition.getZ()));
+                out.write(',');
+                out.write(Boolean.toString(regionPosition.obstacles.northBlocked));
+                out.write(',');
+                out.write(Boolean.toString(regionPosition.obstacles.eastBlocked));
+                out.write(',');
+                out.write(Boolean.toString(regionPosition.obstacles.southBlocked));
+                out.write(',');
+                out.write(Boolean.toString(regionPosition.obstacles.westBlocked));
+            }
+        }
+    }
+
 //    private void gatherWalkableTiles(final WalkableTilesMap walkableTilesMap) {
 //        for (Region region : this.regions) {
 //            for (int dx = 0; dx < Region.X; dx++) {
