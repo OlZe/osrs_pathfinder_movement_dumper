@@ -1,9 +1,11 @@
 package net.runelite.cache.movementdumper;
 
+import net.runelite.cache.region.Location;
 import net.runelite.cache.region.Position;
 import net.runelite.cache.region.Region;
 
 import java.util.Objects;
+import java.util.stream.Stream;
 
 /**
  * This is an abstraction which represents one game tile/square/position in the game.
@@ -11,7 +13,7 @@ import java.util.Objects;
  * It handles the "bridge-flag" under the hood.
  * {@link PositionUtils} provides useful manipulation functions.
  */
-public class RegionPosition {
+class RegionPosition {
     public final Position relativePosition;
     public final Region region;
     public final TileObstacles obstacles;
@@ -37,12 +39,11 @@ public class RegionPosition {
          */
         this.isBridgeAbove = tileSettings.isBridgeAbove;
 
-        if(this.isBridgeAbove) {
+        if (this.isBridgeAbove) {
             // Get the tile settings from z+1
             this.tileSettings = new TileSettings(region, PositionUtils.move(relativePosition, 0, 0, 1));
             assert this.tileSettings.isBridge;
-        }
-        else {
+        } else {
             this.tileSettings = tileSettings;
         }
 
@@ -58,68 +59,67 @@ public class RegionPosition {
                 && !this.tileSettings.isBlocked;
     }
 
-    private TileObstacles getObstacles() {
-        final TileObstacles tileObstacles = new TileObstacles();
-
-        // Obstacles are found using absolute positions
+    public Stream<Location> getLocations() {
+        // Locations are found using absolute positions
         final Position absolutePosition;
 
-        if(!this.isBridgeAbove) {
+        if (!this.isBridgeAbove) {
             absolutePosition = PositionUtils.toAbsolute(this);
-        }
-        else {
+        } else {
             // Get the obstacles from z+1
             absolutePosition = PositionUtils.move(PositionUtils.toAbsolute(this), 0, 0, 1);
         }
+        return region.getLocations().stream()
+                .filter(l -> l.getPosition().equals(absolutePosition));
+    }
 
-        region.getLocations().stream()
-                .filter(l -> l.getPosition().equals(absolutePosition))
-                .forEachOrdered(location -> {
-                    if (location.getType() == 0) {
-                        // Lateral direction blocked
-                        switch (location.getOrientation()) {
-                            case 0:
-                                tileObstacles.westBlocked = true;
-                                break;
-                            case 1:
-                                tileObstacles.northBlocked = true;
-                                break;
-                            case 2:
-                                tileObstacles.eastBlocked = true;
-                                break;
-                            case 3:
-                                tileObstacles.southBlocked = true;
-                                break;
-                        }
-                    } else if (location.getType() == 2) {
-                        // Diagonal direction blocked, blocks both lateral ways
-                        switch (location.getOrientation()) {
-                            case 0:
-                                tileObstacles.northBlocked = true;
-                                tileObstacles.westBlocked = true;
-                                break;
-                            case 1:
-                                tileObstacles.northBlocked = true;
-                                tileObstacles.eastBlocked = true;
-                                break;
-                            case 2:
-                                tileObstacles.southBlocked = true;
-                                tileObstacles.eastBlocked = true;
-                                break;
-                            case 3:
-                                tileObstacles.southBlocked = true;
-                                tileObstacles.westBlocked = true;
-                                break;
-                        }
-                    } else if (location.getType() == 9) {
-                        // All sides blocked
+    private TileObstacles getObstacles() {
+        final TileObstacles tileObstacles = new TileObstacles();
+        this.getLocations().forEachOrdered(location -> {
+            if (location.getType() == 0) {
+                // Lateral direction blocked
+                switch (location.getOrientation()) {
+                    case 0:
                         tileObstacles.westBlocked = true;
+                        break;
+                    case 1:
+                        tileObstacles.northBlocked = true;
+                        break;
+                    case 2:
+                        tileObstacles.eastBlocked = true;
+                        break;
+                    case 3:
+                        tileObstacles.southBlocked = true;
+                        break;
+                }
+            } else if (location.getType() == 2) {
+                // Diagonal direction blocked, blocks both lateral ways
+                switch (location.getOrientation()) {
+                    case 0:
+                        tileObstacles.northBlocked = true;
+                        tileObstacles.westBlocked = true;
+                        break;
+                    case 1:
                         tileObstacles.northBlocked = true;
                         tileObstacles.eastBlocked = true;
+                        break;
+                    case 2:
                         tileObstacles.southBlocked = true;
-                    }
-                    // TODO handle game object case
-                });
+                        tileObstacles.eastBlocked = true;
+                        break;
+                    case 3:
+                        tileObstacles.southBlocked = true;
+                        tileObstacles.westBlocked = true;
+                        break;
+                }
+            } else if (location.getType() == 9) {
+                // All sides blocked
+                tileObstacles.westBlocked = true;
+                tileObstacles.northBlocked = true;
+                tileObstacles.eastBlocked = true;
+                tileObstacles.southBlocked = true;
+            }
+        });
         return tileObstacles;
     }
 

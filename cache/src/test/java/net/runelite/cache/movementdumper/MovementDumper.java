@@ -1,6 +1,7 @@
 package net.runelite.cache.movementdumper;
 
 import net.runelite.cache.ObjectManager;
+import net.runelite.cache.definitions.ObjectDefinition;
 import net.runelite.cache.fs.Store;
 import net.runelite.cache.region.Position;
 import net.runelite.cache.region.Region;
@@ -24,8 +25,6 @@ public class MovementDumper {
     private static final String OUTPUT_FILE_ARCHIVE_ENTRY = "movement.csv";
 
     private final Logger logger = LoggerFactory.getLogger(MovementDumper.class);
-
-    private Collection<Region> regions;
     private ObjectManager objectManager;
     private PositionUtils positionUtils;
 
@@ -36,27 +35,22 @@ public class MovementDumper {
         this.init();
         logger.info("Init done");
 
-        logger.info("Starting search");
         final RegionPosition start = this.positionUtils.toRegionPosition(new Position(3244, 3226, 0));
-        final Collection<RegionPosition> result = this.bfs(start);
-        logger.info("Search done: " + result.size() + " positions found.");
+        logger.info("Starting exploration");
+        final HashSet<RegionPosition> result = this.explore(start);
+        logger.info("Exploration done: " + result.size() + " positions found");
+
+        logger.info("Start removing positions covered by game objects");
+        final int previousSize = result.size();
+        this.removePositionsCoveredByGameObjects(result);
+        logger.info("Removing positions done: " + (previousSize - result.size()) + " removed, " + result.size() + " left");
 
         logger.info("writing dump");
         this.writeCsvDump(result);
         logger.info("done");
-
-//
-//        final WalkableTilesMap walkableTilesMap = new WalkableTilesMap();
-//
-//        logger.info("Gathering walkable tiles");
-//        this.gatherWalkableTiles(walkableTilesMap);
-//
-//        logger.info("Gathering obstacles");
-//        this.gatherObstacles(walkableTilesMap);
-//
     }
 
-    private Collection<RegionPosition> bfs(final RegionPosition startPosition) {
+    private HashSet<RegionPosition> explore(final RegionPosition startPosition) {
         if (!startPosition.isWalkable()) {
             throw new Error("bfs: Start tile " + PositionUtils.toAbsolute(startPosition) + " is not walkable");
         }
@@ -73,10 +67,9 @@ public class MovementDumper {
             }
             closedList.add(currentPos);
 
-            this.getDirectNeighbours(currentPos).stream()
-                    .forEachOrdered(openList::add);
+            openList.addAll(this.getDirectNeighbours(currentPos));
 
-            if(closedList.size() % 5000 == 0) {
+            if (closedList.size() % 20000 == 0) {
                 logger.info("Explored " + closedList.size() + " positions.");
             }
         }
@@ -84,32 +77,51 @@ public class MovementDumper {
         return closedList;
     }
 
+    private void removePositionsCoveredByGameObjects(HashSet<RegionPosition> positions) {
+        List<RegionPosition> coveredPositions = new LinkedList<>();
+        positions.forEach(position -> position.getLocations()
+                .filter(l -> l.getType() == 10)
+                .forEachOrdered(location -> {
+                    final ObjectDefinition object = this.objectManager.getObject(location.getId());
+                    final int width = location.getOrientation() % 2 == 1 ? object.getSizeY() : object.getSizeX();
+                    final int height = location.getOrientation() % 2 == 1 ? object.getSizeX() : object.getSizeY();
+
+                    for (int dx = 0; dx < width; dx++) {
+                        for (int dy = 0; dy < height; dy++) {
+                            final RegionPosition coveredPosition = this.positionUtils.move(position, dx, dy);
+                            coveredPositions.add(coveredPosition);
+                        }
+                    }
+                }));
+        coveredPositions.forEach(positions::remove);
+    }
+
     private Collection<RegionPosition> getDirectNeighbours(RegionPosition position) {
         List<RegionPosition> neighbours = new LinkedList<>();
 
         final RegionPosition north = getNorthIfWalkable(position);
-        if(north != null) neighbours.add(north);
+        if (north != null) neighbours.add(north);
 
         final RegionPosition northEast = getNorthEastIfWalkable(position);
-        if(northEast != null) neighbours.add(northEast);
+        if (northEast != null) neighbours.add(northEast);
 
         final RegionPosition east = getEastIfWalkable(position);
-        if(east != null) neighbours.add(east);
+        if (east != null) neighbours.add(east);
 
         final RegionPosition southEast = getSouthEastIfWalkable(position);
-        if(southEast != null) neighbours.add(southEast);
+        if (southEast != null) neighbours.add(southEast);
 
         final RegionPosition south = getSouthIfWalkable(position);
-        if(south != null) neighbours.add(south);
+        if (south != null) neighbours.add(south);
 
         final RegionPosition southWest = getSouthWestIfWalkable(position);
-        if(southWest != null) neighbours.add(southWest);
+        if (southWest != null) neighbours.add(southWest);
 
         final RegionPosition west = getWestIfWalkable(position);
-        if(west != null) neighbours.add(west);
+        if (west != null) neighbours.add(west);
 
         final RegionPosition northWest = getNorthWestIfWalkable(position);
-        if(northWest != null) neighbours.add(northWest);
+        if (northWest != null) neighbours.add(northWest);
 
         return neighbours;
     }
@@ -149,10 +161,10 @@ public class MovementDumper {
     private RegionPosition getNorthEastIfWalkable(RegionPosition position) {
         final RegionPosition north = this.getNorthIfWalkable(position);
         final RegionPosition east = this.getEastIfWalkable(position);
-        if(north != null && east != null) {
+        if (north != null && east != null) {
             final RegionPosition northEast = this.getEastIfWalkable(north);
             final RegionPosition eastNorth = this.getNorthIfWalkable(east);
-            if(northEast != null && eastNorth != null) {
+            if (northEast != null && eastNorth != null) {
                 return northEast;
             }
         }
@@ -162,10 +174,10 @@ public class MovementDumper {
     private RegionPosition getNorthWestIfWalkable(RegionPosition position) {
         final RegionPosition north = this.getNorthIfWalkable(position);
         final RegionPosition west = this.getWestIfWalkable(position);
-        if(north != null && west != null) {
+        if (north != null && west != null) {
             final RegionPosition northWest = this.getWestIfWalkable(north);
             final RegionPosition westNorth = this.getNorthIfWalkable(west);
-            if(northWest != null && westNorth != null) {
+            if (northWest != null && westNorth != null) {
                 return northWest;
             }
         }
@@ -175,10 +187,10 @@ public class MovementDumper {
     private RegionPosition getSouthEastIfWalkable(RegionPosition position) {
         final RegionPosition south = this.getSouthIfWalkable(position);
         final RegionPosition east = this.getEastIfWalkable(position);
-        if(south != null && east != null) {
+        if (south != null && east != null) {
             final RegionPosition southEast = this.getEastIfWalkable(south);
             final RegionPosition eastSouth = this.getSouthIfWalkable(east);
-            if(southEast != null && eastSouth != null) {
+            if (southEast != null && eastSouth != null) {
                 return southEast;
             }
         }
@@ -188,10 +200,10 @@ public class MovementDumper {
     private RegionPosition getSouthWestIfWalkable(RegionPosition position) {
         final RegionPosition south = this.getSouthIfWalkable(position);
         final RegionPosition west = this.getWestIfWalkable(position);
-        if(south != null && west != null) {
+        if (south != null && west != null) {
             final RegionPosition southWest = this.getWestIfWalkable(south);
             final RegionPosition westSouth = this.getSouthIfWalkable(west);
-            if(southWest != null && westSouth != null) {
+            if (southWest != null && westSouth != null) {
                 return southWest;
             }
         }
@@ -228,86 +240,6 @@ public class MovementDumper {
         }
     }
 
-//    private void gatherWalkableTiles(final WalkableTilesMap walkableTilesMap) {
-//        for (Region region : this.regions) {
-//            for (int dx = 0; dx < Region.X; dx++) {
-//                for (int dy = 0; dy < Region.Y; dy++) {
-//                    for (int z = 0; z < Region.Z; z++) {
-//                        final Position relativePosition = new Position(dx, dy, z);
-//                        final TileSettings tileSettings = new TileSettings(region, relativePosition);
-//                        if (!tileSettings.isWalkable || tileSettings.isBlocked || tileSettings.isBridgeAbove) {
-//                            continue;
-//                        }
-//                        final Position normalizedAbsolutePos = PositionUtils.toNormalizedAbsolute(relativePosition, region, tileSettings.isBridge);
-//                        walkableTilesMap.addWalkableTile(normalizedAbsolutePos);
-//                    }
-//                }
-//            }
-//        }
-//    }
-//
-//    private void gatherObstacles(final WalkableTilesMap walkableTilesMap) {
-//        for (Region region : this.regions) {
-//            for (Location location : region.getLocations()) {
-//                final TileSettings tileSettings = new TileSettings(region, PositionUtils.toRelative(region, location.getPosition()));
-//                final Position normalizedAbsolutePosition = PositionUtils.normalize(location.getPosition(), tileSettings.isBridge);
-//
-//                if (location.getType() == 0) {
-//                    // Lateral direction blocked
-//                    switch (location.getOrientation()) {
-//                        case 0:
-//                            walkableTilesMap.markLeftBlocked(normalizedAbsolutePosition);
-//                            break;
-//                        case 1:
-//                            walkableTilesMap.markTopBlocked(normalizedAbsolutePosition);
-//                            break;
-//                        case 2:
-//                            walkableTilesMap.markRightBlocked(normalizedAbsolutePosition);
-//                            break;
-//                        case 3:
-//                            walkableTilesMap.markBottomBlocked(normalizedAbsolutePosition);
-//                            break;
-//                    }
-//                } else if (location.getType() == 2) {
-//                    // Diagonal direction blocked, blocks both lateral ways
-//                    switch (location.getOrientation()) {
-//                        case 0:
-//                            walkableTilesMap.markTopBlocked(normalizedAbsolutePosition);
-//                            walkableTilesMap.markLeftBlocked(normalizedAbsolutePosition);
-//                            break;
-//                        case 1:
-//                            walkableTilesMap.markTopBlocked(normalizedAbsolutePosition);
-//                            walkableTilesMap.markRightBlocked(normalizedAbsolutePosition);
-//                            break;
-//                        case 2:
-//                            walkableTilesMap.markBottomBlocked(normalizedAbsolutePosition);
-//                            walkableTilesMap.markRightBlocked(normalizedAbsolutePosition);
-//                            break;
-//                        case 3:
-//                            walkableTilesMap.markBottomBlocked(normalizedAbsolutePosition);
-//                            walkableTilesMap.markLeftBlocked(normalizedAbsolutePosition);
-//                            break;
-//                    }
-//                } else if (location.getType() == 9) {
-//                    // All sides blocked
-//                    walkableTilesMap.markAllSidesBlocked(normalizedAbsolutePosition);
-//                } else if (location.getType() == 10) {
-//                    // Game object covers tiles
-//                    final ObjectDefinition object = this.objectManager.getObject(location.getId());
-//                    final int width = location.getOrientation() % 2 == 1 ? object.getSizeY() : object.getSizeX();
-//                    final int height = location.getOrientation() % 2 == 1 ? object.getSizeX() : object.getSizeY();
-//
-//                    for (int dx = 0; dx < width; dx++) {
-//                        for (int dy = 0; dy < height; dy++) {
-//                            final Position current = PositionUtils.move(normalizedAbsolutePosition, dx, dy, 0);
-//                            walkableTilesMap.markAllSidesBlocked(current);
-//                        }
-//                    }
-//                }
-//            }
-//        }
-//    }
-
     private void init() throws IOException {
         final Store cacheStore = new Store(new File(CACHE_DIR));
         cacheStore.load();
@@ -323,8 +255,7 @@ public class MovementDumper {
         final ObjectManager objectManager = new ObjectManager(cacheStore);
         objectManager.load();
 
-        this.regions = regionLoader.getRegions();
         this.objectManager = objectManager;
-        this.positionUtils = new PositionUtils(this.regions);
+        this.positionUtils = new PositionUtils(regionLoader.getRegions());
     }
 }
