@@ -4,12 +4,17 @@ import net.runelite.cache.region.Position;
 import net.runelite.cache.region.Region;
 
 import java.util.Collection;
+import java.util.HashMap;
 
 class PositionUtils {
-    private final Collection<Region> allRegions;
+    private final HashMap<Position, Region> allRegions;
 
     PositionUtils(final Collection<Region> allRegions) {
-        this.allRegions = allRegions;
+        this.allRegions = new HashMap<>();
+        allRegions.forEach(region -> {
+            final Position pos = new Position(region.getRegionX(), region.getRegionY(), 0);
+            this.allRegions.put(pos, region);
+        });
     }
 
     public static Position move(final Position position, int dx, int dy, int dz) {
@@ -44,10 +49,11 @@ class PositionUtils {
     }
 
     private Region findRegion(Position absolutePosition) {
-        return this.allRegions.stream()
-                .filter(r -> r.getRegionX() == absolutePosition.getX() / 64
-                        && r.getRegionY() == absolutePosition.getY() / 64)
-                .findAny()
-                .orElse(null);
+        final Position regionPos = new Position(
+                absolutePosition.getX() / 64,
+                absolutePosition.getY() / 64,
+                0
+        );
+        return this.allRegions.get(regionPos);
     }
 }
