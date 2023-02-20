@@ -3,6 +3,7 @@ package net.runelite.cache.movementdumper;
 import net.runelite.cache.ObjectManager;
 import net.runelite.cache.definitions.ObjectDefinition;
 import net.runelite.cache.fs.Store;
+import net.runelite.cache.region.Location;
 import net.runelite.cache.region.Position;
 import net.runelite.cache.region.Region;
 import net.runelite.cache.region.RegionLoader;
@@ -15,27 +16,32 @@ import org.slf4j.LoggerFactory;
 import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
+import java.util.stream.Collectors;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
 public class MovementDumper {
-    private static final String CACHE_DIR = "C:\\Users\\Oli\\Desktop\\Code\\OSRS Navigator\\wiki maps pathfinding project\\movement dumper\\2023-02-15-rev211\\cache";
-    private static final String XTEAKEYS_FILE = "C:\\Users\\Oli\\Desktop\\Code\\OSRS Navigator\\wiki maps pathfinding project\\movement dumper\\2023-02-15-rev211\\xteas_old_format.json";
+    private static final String CACHE_DIR = "C:\\Users\\Oli\\Desktop\\Code\\OSRS Navigator\\wiki maps pathfinding project\\movement dumper\\2023-02-15-rev211\\";
+    private static final String CACHE_DIR_XTEAKEYS_FILE = "xteas_old_format.json";
     private static final String OUTPUT_FILE_ARCHIVE = "C:\\Users\\Oli\\Desktop\\Code\\OSRS Navigator\\wiki maps pathfinding project\\spring restructure\\pathfinder\\src\\main\\resources\\movement.csv.zip";
     private static final String OUTPUT_FILE_ARCHIVE_ENTRY = "movement.csv";
 
     private final Logger logger = LoggerFactory.getLogger(MovementDumper.class);
     private ObjectManager objectManager;
     private PositionUtils positionUtils;
+    private Map<RegionPosition, List<Teleport>> teleports;
+    private Map<RegionPosition, List<Transport>> transports;
+    private Collection<Region> regions;
+
 
     @Ignore
     @Test
     public void extractAndDumpMovementData() throws IOException {
-        logger.info("Start");
+        logger.info("Init");
         this.init();
         logger.info("Init done");
 
-        final RegionPosition start = this.positionUtils.toRegionPosition(new Position(3244, 3226, 0));
+        final RegionPosition start = this.positionUtils.toRegionPosition(new Position(3234, 3225, 0));
         logger.info("Starting exploration");
         final HashSet<RegionPosition> result = this.explore(start);
         logger.info("Exploration done: " + result.size() + " positions found");
@@ -99,6 +105,7 @@ public class MovementDumper {
     private Collection<RegionPosition> getDirectNeighbours(RegionPosition position) {
         List<RegionPosition> neighbours = new LinkedList<>();
 
+        // Walkable neighbours
         final RegionPosition north = getNorthIfWalkable(position);
         if (north != null) neighbours.add(north);
 
@@ -122,6 +129,12 @@ public class MovementDumper {
 
         final RegionPosition northWest = getNorthWestIfWalkable(position);
         if (northWest != null) neighbours.add(northWest);
+
+        // Transports from this position
+        this.transports.getOrDefault(position, new ArrayList<>(0))
+                .stream().map(t -> t.to)
+                .forEachOrdered(neighbours::add);
+
 
         return neighbours;
     }
@@ -241,21 +254,30 @@ public class MovementDumper {
     }
 
     private void init() throws IOException {
-        final Store cacheStore = new Store(new File(CACHE_DIR));
+        logger.info("Loading cache");
+        final Store cacheStore = new Store(new File(CACHE_DIR + "\\cache"));
         cacheStore.load();
 
         final XteaKeyManager keyManager = new XteaKeyManager();
-        try (final FileInputStream in = new FileInputStream(XTEAKEYS_FILE)) {
+        try (final FileInputStream in = new FileInputStream(CACHE_DIR + "\\" + CACHE_DIR_XTEAKEYS_FILE)) {
             keyManager.loadKeys(in);
         }
 
         final RegionLoader regionLoader = new RegionLoader(cacheStore, keyManager);
         regionLoader.loadRegions();
 
+        regions = regionLoader.getRegions();
+        this.positionUtils = new PositionUtils(regions);
+
         final ObjectManager objectManager = new ObjectManager(cacheStore);
         objectManager.load();
 
         this.objectManager = objectManager;
-        this.positionUtils = new PositionUtils(regionLoader.getRegions());
+
+        logger.info("Loading teleport and transport data");
+        final DataDeserializer.TeleportsAndTransports teleportsAndTransports =
+                new DataDeserializer().readTeleportsAndTransports(this.positionUtils);
+        this.teleports = teleportsAndTransports.teleports;
+        this.transports = teleportsAndTransports.transports;
     }
 }
