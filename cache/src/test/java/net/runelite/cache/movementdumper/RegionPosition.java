@@ -1,5 +1,7 @@
 package net.runelite.cache.movementdumper;
 
+import net.runelite.cache.ObjectManager;
+import net.runelite.cache.definitions.ObjectDefinition;
 import net.runelite.cache.region.Location;
 import net.runelite.cache.region.Position;
 import net.runelite.cache.region.Region;
@@ -21,7 +23,7 @@ class RegionPosition {
     private final boolean isBridgeAbove;
 
 
-    public RegionPosition(Position relativePosition, Region region) {
+    public RegionPosition(Position relativePosition, Region region, ObjectManager objectManager) {
         this.relativePosition = relativePosition;
         this.region = region;
 
@@ -50,13 +52,15 @@ class RegionPosition {
         // Only happens if there's 2 bridges directly ontop of each other which should never happen.
         assert !this.tileSettings.isBridgeAbove;
 
-        this.obstacles = getObstacles();
+        if(this.tileSettings.isWalkableNew()) {
+            this.obstacles = getObstacleData(objectManager);
+        } else {
+            this.obstacles = new TileObstacles();
+        }
     }
 
     public boolean isWalkable() {
-        return !this.obstacles.allDirectionsBlocked()
-                && this.tileSettings.isWalkable
-                && !this.tileSettings.isBlocked;
+        return this.tileSettings.isWalkableNew() && !this.obstacles.allDirectionsBlocked();
     }
 
     public Stream<Location> getLocations() {
@@ -73,53 +77,57 @@ class RegionPosition {
                 .filter(l -> l.getPosition().equals(absolutePosition));
     }
 
-    private TileObstacles getObstacles() {
+    private TileObstacles getObstacleData(ObjectManager objectManager) {
         final TileObstacles tileObstacles = new TileObstacles();
-        this.getLocations().forEachOrdered(location -> {
-            if (location.getType() == 0) {
-                // Lateral direction blocked
-                switch (location.getOrientation()) {
-                    case 0:
-                        tileObstacles.westBlocked = true;
-                        break;
-                    case 1:
-                        tileObstacles.northBlocked = true;
-                        break;
-                    case 2:
-                        tileObstacles.eastBlocked = true;
-                        break;
-                    case 3:
-                        tileObstacles.southBlocked = true;
-                        break;
-                }
-            } else if (location.getType() == 2) {
-                // Diagonal direction blocked, blocks both lateral ways
-                switch (location.getOrientation()) {
-                    case 0:
-                        tileObstacles.northBlocked = true;
-                        tileObstacles.westBlocked = true;
-                        break;
-                    case 1:
-                        tileObstacles.northBlocked = true;
-                        tileObstacles.eastBlocked = true;
-                        break;
-                    case 2:
-                        tileObstacles.southBlocked = true;
-                        tileObstacles.eastBlocked = true;
-                        break;
-                    case 3:
-                        tileObstacles.southBlocked = true;
-                        tileObstacles.westBlocked = true;
-                        break;
-                }
-            } else if (location.getType() == 9) {
-                // All sides blocked
-                tileObstacles.westBlocked = true;
-                tileObstacles.northBlocked = true;
-                tileObstacles.eastBlocked = true;
-                tileObstacles.southBlocked = true;
-            }
-        });
+        this.getLocations()
+                .filter(l -> !MovementDumper.LOCATION_TYPES_ALWAYS_WALKABLE.contains(l.getType()))
+                .filter(l -> this.isBlockedByObject(l, objectManager))
+                .forEachOrdered(location -> {
+                    if(tileObstacles.allDirectionsBlocked()) {
+                        return;
+                    }
+
+                    if (location.getType() == 0) {
+                        // Lateral direction blocked
+                        switch (location.getOrientation()) {
+                            case 0:
+                                tileObstacles.westBlocked = true;
+                                break;
+                            case 1:
+                                tileObstacles.northBlocked = true;
+                                break;
+                            case 2:
+                                tileObstacles.eastBlocked = true;
+                                break;
+                            case 3:
+                                tileObstacles.southBlocked = true;
+                                break;
+                        }
+                    } else if (location.getType() == 2) {
+                        // Diagonal direction blocked, blocks both lateral ways
+                        switch (location.getOrientation()) {
+                            case 0:
+                                tileObstacles.northBlocked = true;
+                                tileObstacles.westBlocked = true;
+                                break;
+                            case 1:
+                                tileObstacles.northBlocked = true;
+                                tileObstacles.eastBlocked = true;
+                                break;
+                            case 2:
+                                tileObstacles.southBlocked = true;
+                                tileObstacles.eastBlocked = true;
+                                break;
+                            case 3:
+                                tileObstacles.southBlocked = true;
+                                tileObstacles.westBlocked = true;
+                                break;
+                        }
+                    } else {
+                        // All sides blocked
+                        tileObstacles.setAllDirectionsBlocked();
+                    }
+                });
         return tileObstacles;
     }
 
@@ -134,5 +142,15 @@ class RegionPosition {
     @Override
     public int hashCode() {
         return Objects.hash(this.relativePosition, this.region.getRegionID());
+    }
+
+
+    private boolean isBlockedByObject(Location location, ObjectManager objectManager) {
+        final ObjectDefinition object = objectManager.getObject(location.getId());
+        if (location.getType() == 22) {
+            return object.getInteractType() == 1;
+        } else {
+            return object.getInteractType() != 0;
+        }
     }
 }

@@ -16,11 +16,11 @@ import org.slf4j.LoggerFactory;
 import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
-import java.util.stream.Collectors;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
 public class MovementDumper {
+    public static final HashSet<Integer> LOCATION_TYPES_ALWAYS_WALKABLE = new HashSet<>(Arrays.asList(1, 3, 4, 5, 6, 7, 8));
     private static final String CACHE_DIR = "C:\\Users\\Oli\\Desktop\\Code\\OSRS Navigator\\wiki maps pathfinding project\\movement dumper\\2023-02-15-rev211\\";
     private static final String CACHE_DIR_XTEAKEYS_FILE = "xteas_old_format.json";
     private static final String OUTPUT_FILE_ARCHIVE = "C:\\Users\\Oli\\Desktop\\Code\\OSRS Navigator\\wiki maps pathfinding project\\spring restructure\\pathfinder\\src\\main\\resources\\movement.csv.zip";
@@ -32,6 +32,7 @@ public class MovementDumper {
     private Map<RegionPosition, List<Teleport>> teleports;
     private Map<RegionPosition, List<Transport>> transports;
     private Collection<Region> regions;
+    private HashSet<RegionPosition> positionsBlockedByBigObjects = new HashSet<>();
 
 
     @Ignore
@@ -41,15 +42,13 @@ public class MovementDumper {
         this.init();
         logger.info("Init done");
 
+        logger.info("Mark positions blocked by big objects");
+        this.markPositionsBlockedByBigObjects();
+
         final RegionPosition start = this.positionUtils.toRegionPosition(new Position(3234, 3225, 0));
         logger.info("Starting exploration");
         final HashSet<RegionPosition> result = this.explore(start);
         logger.info("Exploration done: " + result.size() + " positions found");
-
-        logger.info("Start removing positions covered by game objects");
-        final int previousSize = result.size();
-        this.removePositionsCoveredByGameObjects(result);
-        logger.info("Removing positions done: " + (previousSize - result.size()) + " removed, " + result.size() + " left");
 
         logger.info("writing dump");
         this.writeCsvDump(result);
@@ -57,7 +56,7 @@ public class MovementDumper {
     }
 
     private HashSet<RegionPosition> explore(final RegionPosition startPosition) {
-        if (!startPosition.isWalkable()) {
+        if (!startPosition.isWalkable() || this.positionsBlockedByBigObjects.contains(startPosition)) {
             throw new Error("bfs: Start tile " + PositionUtils.toAbsolute(startPosition) + " is not walkable");
         }
 
@@ -83,23 +82,40 @@ public class MovementDumper {
         return closedList;
     }
 
-    private void removePositionsCoveredByGameObjects(HashSet<RegionPosition> positions) {
-        List<RegionPosition> coveredPositions = new LinkedList<>();
-        positions.forEach(position -> position.getLocations()
-                .filter(l -> l.getType() == 10)
-                .forEachOrdered(location -> {
-                    final ObjectDefinition object = this.objectManager.getObject(location.getId());
-                    final int width = location.getOrientation() % 2 == 1 ? object.getSizeY() : object.getSizeX();
-                    final int height = location.getOrientation() % 2 == 1 ? object.getSizeX() : object.getSizeY();
+    private void markPositionsBlockedByBigObjects() {
+        this.regions.stream()
+                .flatMap(r -> r.getLocations().stream())
+                .filter(l -> !LOCATION_TYPES_ALWAYS_WALKABLE.contains(l.getType()))
+                .filter(l -> {
+                    final ObjectDefinition object = objectManager.getObject(l.getId());
+                    return object.getSizeX() > 1 || object.getSizeY() > 1;
+                })
+                .filter(this::isBlockedByObject)
+                .forEach(l -> {
+                    final ObjectDefinition object = objectManager.getObject(l.getId());
+                    final RegionPosition position = this.positionUtils.toRegionPosition(l.getPosition());
+                    final int width = l.getOrientation() % 2 == 1 ? object.getSizeY() : object.getSizeX();
+                    final int height = l.getOrientation() % 2 == 1 ? object.getSizeX() : object.getSizeY();
+                    markPositionsBlockedFromTo(position, width, height);
+                });
+    }
 
-                    for (int dx = 0; dx < width; dx++) {
-                        for (int dy = 0; dy < height; dy++) {
-                            final RegionPosition coveredPosition = this.positionUtils.move(position, dx, dy);
-                            coveredPositions.add(coveredPosition);
-                        }
-                    }
-                }));
-        coveredPositions.forEach(positions::remove);
+    private void markPositionsBlockedFromTo(RegionPosition from, int width, int height) {
+        for (int dx = 0; dx < width; dx++) {
+            for (int dy = 0; dy < height; dy++) {
+                final RegionPosition current = positionUtils.move(from, dx, dy);
+                this.positionsBlockedByBigObjects.add(current);
+            }
+        }
+    }
+
+    private boolean isBlockedByObject(Location location) {
+        final ObjectDefinition object = this.objectManager.getObject(location.getId());
+        if (location.getType() == 22) {
+            return object.getInteractType() == 1;
+        } else {
+            return object.getInteractType() != 0;
+        }
     }
 
     private Collection<RegionPosition> getDirectNeighbours(RegionPosition position) {
@@ -141,7 +157,11 @@ public class MovementDumper {
 
     private RegionPosition getNorthIfWalkable(RegionPosition position) {
         final RegionPosition northPosition = this.positionUtils.move(position, 0, 1);
-        if (northPosition != null && northPosition.isWalkable() && !northPosition.obstacles.southBlocked && !position.obstacles.northBlocked) {
+        if (northPosition != null
+                && !this.positionsBlockedByBigObjects.contains(northPosition)
+                && northPosition.isWalkable()
+                && !northPosition.obstacles.southBlocked
+                && !position.obstacles.northBlocked) {
             return northPosition;
         }
         return null;
@@ -149,7 +169,11 @@ public class MovementDumper {
 
     private RegionPosition getEastIfWalkable(RegionPosition position) {
         final RegionPosition eastPosition = this.positionUtils.move(position, 1, 0);
-        if (eastPosition != null && eastPosition.isWalkable() && !eastPosition.obstacles.westBlocked && !position.obstacles.eastBlocked) {
+        if (eastPosition != null
+                && !this.positionsBlockedByBigObjects.contains(eastPosition)
+                && eastPosition.isWalkable()
+                && !eastPosition.obstacles.westBlocked
+                && !position.obstacles.eastBlocked) {
             return eastPosition;
         }
         return null;
@@ -157,7 +181,11 @@ public class MovementDumper {
 
     private RegionPosition getSouthIfWalkable(RegionPosition position) {
         final RegionPosition southPosition = this.positionUtils.move(position, 0, -1);
-        if (southPosition != null && southPosition.isWalkable() && !southPosition.obstacles.northBlocked && !position.obstacles.southBlocked) {
+        if (southPosition != null
+                && !this.positionsBlockedByBigObjects.contains(southPosition)
+                && southPosition.isWalkable()
+                && !southPosition.obstacles.northBlocked
+                && !position.obstacles.southBlocked) {
             return southPosition;
         }
         return null;
@@ -165,7 +193,11 @@ public class MovementDumper {
 
     private RegionPosition getWestIfWalkable(RegionPosition position) {
         final RegionPosition westPosition = this.positionUtils.move(position, -1, 0);
-        if (westPosition != null && westPosition.isWalkable() && !westPosition.obstacles.eastBlocked && !position.obstacles.westBlocked) {
+        if (westPosition != null
+                && !this.positionsBlockedByBigObjects.contains(westPosition)
+                && westPosition.isWalkable()
+                && !westPosition.obstacles.eastBlocked
+                && !position.obstacles.westBlocked) {
             return westPosition;
         }
         return null;
@@ -254,7 +286,6 @@ public class MovementDumper {
     }
 
     private void init() throws IOException {
-        logger.info("Loading cache");
         final Store cacheStore = new Store(new File(CACHE_DIR + "\\cache"));
         cacheStore.load();
 
@@ -265,16 +296,14 @@ public class MovementDumper {
 
         final RegionLoader regionLoader = new RegionLoader(cacheStore, keyManager);
         regionLoader.loadRegions();
-
-        regions = regionLoader.getRegions();
-        this.positionUtils = new PositionUtils(regions);
+        this.regions = regionLoader.getRegions();
 
         final ObjectManager objectManager = new ObjectManager(cacheStore);
         objectManager.load();
-
         this.objectManager = objectManager;
 
-        logger.info("Loading teleport and transport data");
+        this.positionUtils = new PositionUtils(regions, objectManager);
+
         final DataDeserializer.TeleportsAndTransports teleportsAndTransports =
                 new DataDeserializer().readTeleportsAndTransports(this.positionUtils);
         this.teleports = teleportsAndTransports.teleports;

@@ -1,5 +1,6 @@
 package net.runelite.cache.movementdumper;
 
+import net.runelite.cache.ObjectManager;
 import net.runelite.cache.region.Position;
 import net.runelite.cache.region.Region;
 
@@ -8,8 +9,10 @@ import java.util.HashMap;
 
 class PositionUtils {
     private final HashMap<Position, Region> allRegions;
+    private final ObjectManager objectManager;
 
-    PositionUtils(final Collection<Region> allRegions) {
+    PositionUtils(final Collection<Region> allRegions, final ObjectManager objectManager) {
+        this.objectManager = objectManager;
         this.allRegions = new HashMap<>();
         allRegions.forEach(region -> {
             final Position pos = new Position(region.getRegionX(), region.getRegionY(), 0);
@@ -41,7 +44,8 @@ class PositionUtils {
                         absolutePosition.getX() % Region.X,
                         absolutePosition.getY() % Region.Y,
                         absolutePosition.getZ()),
-                region);
+                region,
+                this.objectManager);
     }
 
     public RegionPosition move(RegionPosition position, int dx, int dy) {

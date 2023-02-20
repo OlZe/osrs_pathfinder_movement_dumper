@@ -9,6 +9,10 @@ class TileSettings {
     public final boolean isBridge;
     public final boolean isBridgeAbove;
 
+    public final boolean isWalkableNew() {
+        return this.isWalkable && !this.isBlocked;
+    }
+
     public TileSettings(Region region, Position relativePosition) {
         final int tileSetting = region.getTileSetting(relativePosition.getZ(), relativePosition.getX(), relativePosition.getY());
         this.isWalkable = (tileSetting & 1) == 0;
