@@ -130,10 +130,10 @@ public class MovementDumper {
         final RegionPosition northWest = getNorthWestIfWalkable(position);
         if (northWest != null) neighbours.add(northWest);
 
-        // Transports from this position
-        this.transports.getOrDefault(position, new ArrayList<>(0))
-                .stream().map(t -> t.to)
-                .forEachOrdered(neighbours::add);
+//        // Transports from this position
+//        this.transports.getOrDefault(position, new ArrayList<>(0))
+//                .stream().map(t -> t.to)
+//                .forEachOrdered(neighbours::add);
 
 
         return neighbours;
