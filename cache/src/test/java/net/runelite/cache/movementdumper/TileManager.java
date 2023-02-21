@@ -5,29 +5,33 @@ import net.runelite.cache.definitions.ObjectDefinition;
 import net.runelite.cache.region.Location;
 import net.runelite.cache.region.Position;
 import net.runelite.cache.region.Region;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
 
 public class TileManager {
-
     private static final HashSet<Integer> LOCATION_TYPES_ALWAYS_WALKABLE = new HashSet<>(Arrays.asList(1, 3, 4, 5, 6, 7, 8));
     private static final int LOCATION_TYPE_WALL = 0;
     private static final int LOCATION_TYPE_WALL_CORNER = 2;
-
+    private final Logger logger = LoggerFactory.getLogger(TileManager.class);
+    private final HashSet<Position> positionsBlockedByBigObjects;
     private final HashMap<Position, Region> allRegions;
     private final ObjectManager objectManager;
-    private HashSet<Position> positionsBlockedByBigObjects;
 
     public TileManager(final Collection<Region> allRegions, final ObjectManager objectManager) {
+        logger.info("Init");
         this.objectManager = objectManager;
 
         this.allRegions = new HashMap<>();
         allRegions.forEach(region -> this.allRegions.put(PositionUtils.toRegionPosition(region), region));
 
+        logger.info("Marking positions blocked by big objects");
         this.positionsBlockedByBigObjects = new HashSet<>();
         this.markPositionsBlockedByBigObjects();
+        logger.info("Marked " + positionsBlockedByBigObjects.size() + " tiles");
     }
 
     public Optional<Tile> getTile(Position position) {

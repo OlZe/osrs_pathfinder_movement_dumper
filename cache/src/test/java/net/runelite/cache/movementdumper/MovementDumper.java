@@ -12,7 +12,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.*;
+import java.nio.charset.StandardCharsets;
 import java.util.*;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipOutputStream;
 
 public class MovementDumper {
     private static final String CACHE_DIR = "C:\\Users\\Oli\\Desktop\\Code\\OSRS Navigator\\wiki maps pathfinding project\\movement dumper\\2023-02-15-rev211\\";
@@ -21,10 +24,6 @@ public class MovementDumper {
     private static final String OUTPUT_FILE_ARCHIVE_ENTRY = "movement.csv";
 
     private final Logger logger = LoggerFactory.getLogger(MovementDumper.class);
-    private ObjectManager objectManager;
-//    private Map<RegionPosition, List<Teleport>> teleports;
-//    private Map<RegionPosition, List<Transport>> transports;
-    private Collection<Region> regions;
     private TileManager tileManager;
 
 
@@ -39,12 +38,12 @@ public class MovementDumper {
 
 
         logger.info("Starting exploration");
-//        final HashSet<RegionPosition> result = this.explore(start);
-//        logger.info("Exploration done: " + result.size() + " positions found");
-//
-//        logger.info("writing dump");
-//        this.writeCsvDump(result);
-//        logger.info("done");
+        final HashSet<Tile> result = this.explore(tileManager.getTile(start).get());
+        logger.info("Exploration done: " + result.size() + " positions found");
+
+        logger.info("writing dump");
+        this.writeCsvDump(result);
+        logger.info("done");
     }
 
     private HashSet<Tile> explore(final Tile startTile) {
@@ -75,35 +74,35 @@ public class MovementDumper {
     }
 
 
-//    private void writeCsvDump(final Collection<RegionPosition> regionPositions) throws IOException {
-//        try (final FileOutputStream fileOut = new FileOutputStream(OUTPUT_FILE_ARCHIVE);
-//             final ZipOutputStream zipOut = new ZipOutputStream(fileOut);
-//             final OutputStreamWriter writerOut = new OutputStreamWriter(zipOut, StandardCharsets.UTF_8);
-//             final BufferedWriter out = new BufferedWriter(writerOut)) {
-//
-//            final ZipEntry zipEntry = new ZipEntry(OUTPUT_FILE_ARCHIVE_ENTRY);
-//            zipOut.putNextEntry(zipEntry);
-//            out.write("# x,y,z,topBlocked,rightBlocked,bottomBlocked,leftBlocked");
-//            for (RegionPosition regionPosition : regionPositions) {
-//                final Position absolutePosition = PositionUtils.toAbsolute(regionPosition);
-//
-//                out.write('\n');
-//                out.write(Integer.toString(absolutePosition.getX()));
-//                out.write(',');
-//                out.write(Integer.toString(absolutePosition.getY()));
-//                out.write(',');
-//                out.write(Integer.toString(absolutePosition.getZ()));
-//                out.write(',');
-//                out.write(Boolean.toString(regionPosition.obstacles.northBlocked));
-//                out.write(',');
-//                out.write(Boolean.toString(regionPosition.obstacles.eastBlocked));
-//                out.write(',');
-//                out.write(Boolean.toString(regionPosition.obstacles.southBlocked));
-//                out.write(',');
-//                out.write(Boolean.toString(regionPosition.obstacles.westBlocked));
-//            }
-//        }
-//    }
+    private void writeCsvDump(final Collection<Tile> tiles) throws IOException {
+        try (final FileOutputStream fileOut = new FileOutputStream(OUTPUT_FILE_ARCHIVE);
+             final ZipOutputStream zipOut = new ZipOutputStream(fileOut);
+             final OutputStreamWriter writerOut = new OutputStreamWriter(zipOut, StandardCharsets.UTF_8);
+             final BufferedWriter out = new BufferedWriter(writerOut)) {
+
+            final ZipEntry zipEntry = new ZipEntry(OUTPUT_FILE_ARCHIVE_ENTRY);
+            zipOut.putNextEntry(zipEntry);
+            out.write("# x,y,z,northBlocked,eastBlocked,southBlocked,westBlocked");
+            for (Tile tile : tiles) {
+                assert tile.isWalkable && tile.directionalBlockers.isPresent();
+
+                out.write('\n');
+                out.write(Integer.toString(tile.position.getX()));
+                out.write(',');
+                out.write(Integer.toString(tile.position.getY()));
+                out.write(',');
+                out.write(Integer.toString(tile.position.getZ()));
+                out.write(',');
+                out.write(Boolean.toString(tile.directionalBlockers.get().northBlocked));
+                out.write(',');
+                out.write(Boolean.toString(tile.directionalBlockers.get().eastBlocked));
+                out.write(',');
+                out.write(Boolean.toString(tile.directionalBlockers.get().southBlocked));
+                out.write(',');
+                out.write(Boolean.toString(tile.directionalBlockers.get().westBlocked));
+            }
+        }
+    }
 
     private void init() throws IOException {
         final Store cacheStore = new Store(new File(CACHE_DIR + "\\cache"));
@@ -116,12 +115,14 @@ public class MovementDumper {
 
         final RegionLoader regionLoader = new RegionLoader(cacheStore, keyManager);
         regionLoader.loadRegions();
-        this.regions = regionLoader.getRegions();
+        //    private Map<RegionPosition, List<Teleport>> teleports;
+        //    private Map<RegionPosition, List<Transport>> transports;
+        Collection<Region> regions = regionLoader.getRegions();
 
-        this.objectManager = new ObjectManager(cacheStore);
-        this.objectManager.load();
+        ObjectManager objectManager = new ObjectManager(cacheStore);
+        objectManager.load();
 
-        this.tileManager = new TileManager(this.regions, this.objectManager);
+        this.tileManager = new TileManager(regions, objectManager);
 
 //        final DataDeserializer.TeleportsAndTransports teleportsAndTransports =
 //                new DataDeserializer().readTeleportsAndTransports(this.positionUtils);
