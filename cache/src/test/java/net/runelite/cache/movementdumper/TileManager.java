@@ -11,6 +11,7 @@ import org.slf4j.LoggerFactory;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
+import java.util.stream.Stream;
 
 public class TileManager {
     private static final HashSet<Integer> LOCATION_TYPES_ALWAYS_WALKABLE = new HashSet<>(Arrays.asList(1, 3, 4, 5, 6, 7, 8));
@@ -20,18 +21,24 @@ public class TileManager {
     private final HashSet<Position> positionsBlockedByBigObjects;
     private final HashMap<Position, Region> allRegions;
     private final ObjectManager objectManager;
+    private final Map<Position, List<Transport>> transports;
 
-    public TileManager(final Collection<Region> allRegions, final ObjectManager objectManager) {
+    public TileManager(final Collection<Region> allRegions,
+                       final ObjectManager objectManager,
+                       final Map<Position, List<Transport>> transports) {
         logger.info("Init");
-        this.objectManager = objectManager;
 
+        this.objectManager = objectManager;
+        this.transports = transports;
+        this.positionsBlockedByBigObjects = new HashSet<>();
         this.allRegions = new HashMap<>();
+
+        // Populate this.allRegions
         allRegions.forEach(region -> this.allRegions.put(PositionUtils.toRegionPosition(region), region));
 
-        logger.info("Marking positions blocked by big objects");
-        this.positionsBlockedByBigObjects = new HashSet<>();
+        // Populate this.positionsBlockedByBigObjects
         this.markPositionsBlockedByBigObjects();
-        logger.info("Marked " + positionsBlockedByBigObjects.size() + " tiles");
+        logger.info("Marked " + positionsBlockedByBigObjects.size() + " tiles as blocked by big objects");
     }
 
     public Optional<Tile> getTile(Position position) {
@@ -66,24 +73,31 @@ public class TileManager {
         return Optional.of(new Tile(position, true, Optional.of(directionalBlockers)));
     }
 
-    public Collection<Tile> getDirectNeighbours(Tile position) {
+    public Collection<Tile> getDirectNeighbours(Tile tile) {
         List<Tile> neighbours = new LinkedList<>();
 
         // Walkable neighbours
-        getNorthIfWalkable(position).ifPresent(neighbours::add);
-        getNorthEastIfWalkable(position).ifPresent(neighbours::add);
-        getEastIfWalkable(position).ifPresent(neighbours::add);
-        getSouthEastIfWalkable(position).ifPresent(neighbours::add);
-        getSouthIfWalkable(position).ifPresent(neighbours::add);
-        getSouthWestIfWalkable(position).ifPresent(neighbours::add);
-        getWestIfWalkable(position).ifPresent(neighbours::add);
-        getNorthWestIfWalkable(position).ifPresent(neighbours::add);
+        getNorthIfWalkable(tile).ifPresent(neighbours::add);
+        getNorthEastIfWalkable(tile).ifPresent(neighbours::add);
+        getEastIfWalkable(tile).ifPresent(neighbours::add);
+        getSouthEastIfWalkable(tile).ifPresent(neighbours::add);
+        getSouthIfWalkable(tile).ifPresent(neighbours::add);
+        getSouthWestIfWalkable(tile).ifPresent(neighbours::add);
+        getWestIfWalkable(tile).ifPresent(neighbours::add);
+        getNorthWestIfWalkable(tile).ifPresent(neighbours::add);
 
-//        // Transports from this position
-//        this.transports.getOrDefault(position, new ArrayList<>(0))
-//                .stream().map(t -> t.to)
-//                .forEachOrdered(neighbours::add);
-
+        // Transports from this and adjacent positions
+        Stream.of(tile.position,
+                        PositionUtils.moveNorth(tile.position),
+                        PositionUtils.moveEast(tile.position),
+                        PositionUtils.moveWest(tile.position),
+                        PositionUtils.moveSouth(tile.position))
+                .filter(this.transports::containsKey)
+                .flatMap(pos -> this.transports.get(pos).stream())
+                .map(transport -> this.getTile(transport.to))
+                .filter(Optional::isPresent)
+                .filter(transportTo -> transportTo.get().isWalkable)
+                .forEachOrdered(transportTo -> neighbours.add(transportTo.get()));
 
         return neighbours;
     }
@@ -189,7 +203,7 @@ public class TileManager {
         if (!tile.isWalkable || tile.directionalBlockers.get().northBlocked) {
             return Optional.empty();
         }
-        final Optional<Tile> northTile = this.getTile(PositionUtils.move(tile.position, 0, 1, 0));
+        final Optional<Tile> northTile = this.getTile(PositionUtils.moveNorth(tile.position));
         if (northTile.isPresent()
                 && northTile.get().isWalkable
                 && !northTile.get().directionalBlockers.get().southBlocked) {
@@ -202,7 +216,7 @@ public class TileManager {
         if (!tile.isWalkable || tile.directionalBlockers.get().eastBlocked) {
             return Optional.empty();
         }
-        final Optional<Tile> eastTile = this.getTile(PositionUtils.move(tile.position, 1, 0, 0));
+        final Optional<Tile> eastTile = this.getTile(PositionUtils.moveEast(tile.position));
         if (eastTile.isPresent()
                 && eastTile.get().isWalkable
                 && !eastTile.get().directionalBlockers.get().westBlocked) {
@@ -215,7 +229,7 @@ public class TileManager {
         if (!tile.isWalkable || tile.directionalBlockers.get().southBlocked) {
             return Optional.empty();
         }
-        final Optional<Tile> southTile = this.getTile(PositionUtils.move(tile.position, 0, -1, 0));
+        final Optional<Tile> southTile = this.getTile(PositionUtils.moveSouth(tile.position));
         if (southTile.isPresent()
                 && southTile.get().isWalkable
                 && !southTile.get().directionalBlockers.get().northBlocked) {
@@ -228,7 +242,7 @@ public class TileManager {
         if (!tile.isWalkable || tile.directionalBlockers.get().westBlocked) {
             return Optional.empty();
         }
-        final Optional<Tile> westTile = this.getTile(PositionUtils.move(tile.position, -1, 0, 0));
+        final Optional<Tile> westTile = this.getTile(PositionUtils.moveWest(tile.position));
         if (westTile.isPresent()
                 && westTile.get().isWalkable
                 && !westTile.get().directionalBlockers.get().eastBlocked) {

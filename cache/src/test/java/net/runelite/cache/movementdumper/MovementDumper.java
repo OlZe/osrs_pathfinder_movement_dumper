@@ -25,6 +25,8 @@ public class MovementDumper {
 
     private final Logger logger = LoggerFactory.getLogger(MovementDumper.class);
     private TileManager tileManager;
+    private Map<Position, List<Teleport>> teleports;
+    private Map<Position, List<Transport>> transports;
 
 
     @Ignore
@@ -51,26 +53,28 @@ public class MovementDumper {
             throw new Error("bfs: Start tile " + startTile.position + " is not walkable");
         }
 
-        final Queue<Tile> openList = new LinkedList<>();
-        openList.add(startTile);
-        final HashSet<Tile> closedList = new HashSet<>();
+        final Queue<Tile> toVisit = new LinkedList<>();
+        final HashSet<Tile> visitedOrMarkedToBeVisited = new HashSet<>();
+        toVisit.add(startTile);
+        visitedOrMarkedToBeVisited.add(startTile);
 
-        while (openList.peek() != null) {
-            final Tile currentTile = openList.remove();
+        while (toVisit.peek() != null) {
+            final Tile currentTile = toVisit.remove();
 
-            if (closedList.contains(currentTile)) {
-                continue;
-            }
-            closedList.add(currentTile);
+            tileManager.getDirectNeighbours(currentTile).stream()
+                    .filter(n -> !visitedOrMarkedToBeVisited.contains(n))
+                    .forEachOrdered(n -> {
+                        toVisit.add(n);
+                        visitedOrMarkedToBeVisited.add(n);
+                    });
 
-            openList.addAll(tileManager.getDirectNeighbours(currentTile));
-
-            if (closedList.size() % 20000 == 0) {
-                logger.info("Explored " + closedList.size() + " positions.");
+            final int amountVisited = visitedOrMarkedToBeVisited.size() - toVisit.size();
+            if (amountVisited % 20000 == 0) {
+                logger.info("Explored " + amountVisited + " positions. " + toVisit.size() + " left to investigate.");
             }
         }
 
-        return closedList;
+        return visitedOrMarkedToBeVisited;
     }
 
 
@@ -115,18 +119,16 @@ public class MovementDumper {
 
         final RegionLoader regionLoader = new RegionLoader(cacheStore, keyManager);
         regionLoader.loadRegions();
-        //    private Map<RegionPosition, List<Teleport>> teleports;
-        //    private Map<RegionPosition, List<Transport>> transports;
-        Collection<Region> regions = regionLoader.getRegions();
+        final Collection<Region> regions = regionLoader.getRegions();
 
-        ObjectManager objectManager = new ObjectManager(cacheStore);
+        final ObjectManager objectManager = new ObjectManager(cacheStore);
         objectManager.load();
 
-        this.tileManager = new TileManager(regions, objectManager);
+        final DataDeserializer.TeleportsAndTransports teleportsAndTransports =
+                new DataDeserializer().readTeleportsAndTransports();
+        this.teleports = teleportsAndTransports.teleports;
+        this.transports = teleportsAndTransports.transports;
 
-//        final DataDeserializer.TeleportsAndTransports teleportsAndTransports =
-//                new DataDeserializer().readTeleportsAndTransports(this.positionUtils);
-//        this.teleports = teleportsAndTransports.teleports;
-//        this.transports = teleportsAndTransports.transports;
+        this.tileManager = new TileManager(regions, objectManager, transports);
     }
 }
