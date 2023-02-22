@@ -87,6 +87,7 @@ public class TileManager {
         getNorthWestIfWalkable(tile).ifPresent(neighbours::add);
 
         // Transports from this and adjacent positions
+        // TODO investigate how transports on adjacent positions can be blocked (walls etc?)
         Stream.of(tile.position,
                         PositionUtils.moveNorth(tile.position),
                         PositionUtils.moveEast(tile.position),
