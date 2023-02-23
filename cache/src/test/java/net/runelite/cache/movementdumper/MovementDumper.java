@@ -14,6 +14,7 @@ import org.slf4j.LoggerFactory;
 import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
+import java.util.stream.Collectors;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
@@ -25,8 +26,7 @@ public class MovementDumper {
 
     private final Logger logger = LoggerFactory.getLogger(MovementDumper.class);
     private TileManager tileManager;
-    private Map<Position, List<Teleport>> teleports;
-    private Map<Position, List<Transport>> transports;
+    private Map<Position, List<Teleport>> teleportsLeftToExplore;
 
 
     @Ignore
@@ -36,23 +36,44 @@ public class MovementDumper {
         this.init();
         logger.info("Init done");
 
-        final Position start = new Position(3234, 3225, 0);
+        List<Tile> allFoundTiles = new LinkedList<>();
 
+        logger.info("Starting multiple explorations to visit every teleport.");
+        while (this.teleportsLeftToExplore.size() > 0) {
+            logger.info("Teleports left to visit: " + this.teleportsLeftToExplore.values().stream().mapToInt(Collection::size).sum());
 
-        logger.info("Starting exploration");
-        final HashSet<Tile> result = this.explore(tileManager.getTile(start).get());
-        logger.info("Exploration done: " + result.size() + " positions found");
+            // Remove any teleport which is left to explore
+            final Position startPosition = this.teleportsLeftToExplore.keySet().iterator().next();
+            final List<Teleport> startTeleports = this.teleportsLeftToExplore.remove(startPosition);
+
+            final String startTeleportTitles = teleportsToString(startTeleports);
+            logger.info("Starting exploration from teleport(s): " + startTeleportTitles + " on position: " + startPosition.toString());
+
+            final Optional<Tile> startTile = tileManager.getTile(startPosition);
+            if(!startTile.isPresent() || !startTile.get().isWalkable) {
+                throw new Error("Position " + startPosition + " from teleport(s): " + startTeleportTitles + " is not walkable!"
+                        + " Please ensure that this teleport is correctly entered into the dataset.");
+            }
+
+            final HashSet<Tile> foundTiles = this.explore(startTile.get());
+            logger.info("Exploration done: " + foundTiles.size() + " positions found from teleport(s): " + startTeleportTitles);
+
+            allFoundTiles.addAll(foundTiles);
+        }
+        logger.info("Done - All teleports visited. - " + allFoundTiles.size() + " total positions found.");
+
 
         logger.info("writing dump");
-        this.writeCsvDump(result);
+        this.writeCsvDump(allFoundTiles);
+
         logger.info("done");
     }
 
-    private HashSet<Tile> explore(final Tile startTile) {
-        if (!startTile.isWalkable) {
-            throw new Error("bfs: Start tile " + startTile.position + " is not walkable");
-        }
+    private static String teleportsToString(final List<Teleport> startTeleports) {
+        return startTeleports.stream().map(tp -> "\"" + tp.title + "\"").collect(Collectors.joining(","));
+    }
 
+    private HashSet<Tile> explore(final Tile startTile) {
         final Queue<Tile> toVisit = new LinkedList<>();
         final HashSet<Tile> visitedOrMarkedToBeVisited = new HashSet<>();
         toVisit.add(startTile);
@@ -60,6 +81,12 @@ public class MovementDumper {
 
         while (toVisit.peek() != null) {
             final Tile currentTile = toVisit.remove();
+
+            // If there are teleports to this position, mark them as visited
+            final List<Teleport> teleportsToHere = this.teleportsLeftToExplore.remove(currentTile.position);
+            if (teleportsToHere != null) {
+                logger.info("Visited teleport(s): " + teleportsToString(teleportsToHere));
+            }
 
             tileManager.getDirectNeighbours(currentTile).stream()
                     .filter(n -> !visitedOrMarkedToBeVisited.contains(n))
@@ -69,8 +96,8 @@ public class MovementDumper {
                     });
 
             final int amountVisited = visitedOrMarkedToBeVisited.size() - toVisit.size();
-            if (amountVisited % 20000 == 0) {
-                logger.info("Explored " + amountVisited + " positions. " + toVisit.size() + " left to investigate.");
+            if (amountVisited % 50000 == 0) {
+                logger.info("Explored " + amountVisited + " positions. ");
             }
         }
 
@@ -126,9 +153,21 @@ public class MovementDumper {
 
         final DataDeserializer.TeleportsAndTransports teleportsAndTransports =
                 new DataDeserializer().readTeleportsAndTransports();
-        this.teleports = teleportsAndTransports.teleports;
-        this.transports = teleportsAndTransports.transports;
 
-        this.tileManager = new TileManager(regions, objectManager, transports);
+
+        final long amountOfTransports = teleportsAndTransports.transports.values().stream()
+                .mapToLong(Collection::size)
+                .sum();
+
+        logger.info("Read " + amountOfTransports + " transports.");
+
+        final long amountOfTeleports = teleportsAndTransports.teleports.values().stream()
+                .mapToLong(List::size)
+                .sum();
+
+        logger.info("Read " + amountOfTeleports + " teleports.");
+
+        this.teleportsLeftToExplore = new HashMap<>(teleportsAndTransports.teleports);
+        this.tileManager = new TileManager(regions, objectManager, teleportsAndTransports.transports);
     }
 }
