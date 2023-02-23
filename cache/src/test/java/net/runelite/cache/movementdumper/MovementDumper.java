@@ -12,22 +12,19 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.*;
-import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.stream.Collectors;
-import java.util.zip.ZipEntry;
-import java.util.zip.ZipOutputStream;
 
 public class MovementDumper {
     private static final String CACHE_DIR = "C:\\Users\\Oli\\Desktop\\Code\\OSRS Navigator\\wiki maps pathfinding project\\movement dumper\\2023-02-15-rev211\\";
     private static final String CACHE_DIR_XTEAKEYS_FILE = "xteas_old_format.json";
-    private static final String OUTPUT_FILE_ARCHIVE = "C:\\Users\\Oli\\Desktop\\Code\\OSRS Navigator\\wiki maps pathfinding project\\spring restructure\\pathfinder\\src\\main\\resources\\movement.csv.zip";
-    private static final String OUTPUT_FILE_ARCHIVE_ENTRY = "movement.csv";
+    private static final String OUTPUT_ARCHIVE = "C:\\Users\\Oli\\Desktop\\Code\\OSRS Navigator\\wiki maps pathfinding project\\spring restructure\\pathfinder\\src\\main\\resources\\movement.csv.zip";
 
     private final Logger logger = LoggerFactory.getLogger(MovementDumper.class);
     private TileManager tileManager;
     private Map<Position, List<Teleport>> teleportsLeftToExplore;
-
+    private Map<Position, List<Teleport>> allTeleports;
+    private Map<Position, List<Transport>> allTransports;
 
     @Ignore
     @Test
@@ -50,7 +47,7 @@ public class MovementDumper {
             logger.info("Starting exploration from teleport(s): " + startTeleportTitles + " on position: " + startPosition.toString());
 
             final Optional<Tile> startTile = tileManager.getTile(startPosition);
-            if(!startTile.isPresent() || !startTile.get().isWalkable) {
+            if (!startTile.isPresent() || !startTile.get().isWalkable) {
                 throw new Error("Position " + startPosition + " from teleport(s): " + startTeleportTitles + " is not walkable!"
                         + " Please ensure that this teleport is correctly entered into the dataset.");
             }
@@ -64,13 +61,13 @@ public class MovementDumper {
 
 
         logger.info("writing dump");
-        this.writeCsvDump(allFoundTiles);
-
+        final DataSerializer.Dump dump = new DataSerializer.Dump(
+                allFoundTiles,
+                this.allTeleports.values().stream().flatMap(Collection::stream).collect(Collectors.toList()),
+                this.allTransports.values().stream().flatMap(Collection::stream).collect(Collectors.toList())
+        );
+        new DataSerializer().writeDump(dump, OUTPUT_ARCHIVE);
         logger.info("done");
-    }
-
-    private static String teleportsToString(final List<Teleport> startTeleports) {
-        return startTeleports.stream().map(tp -> "\"" + tp.title + "\"").collect(Collectors.joining(","));
     }
 
     private HashSet<Tile> explore(final Tile startTile) {
@@ -104,35 +101,8 @@ public class MovementDumper {
         return visitedOrMarkedToBeVisited;
     }
 
-
-    private void writeCsvDump(final Collection<Tile> tiles) throws IOException {
-        try (final FileOutputStream fileOut = new FileOutputStream(OUTPUT_FILE_ARCHIVE);
-             final ZipOutputStream zipOut = new ZipOutputStream(fileOut);
-             final OutputStreamWriter writerOut = new OutputStreamWriter(zipOut, StandardCharsets.UTF_8);
-             final BufferedWriter out = new BufferedWriter(writerOut)) {
-
-            final ZipEntry zipEntry = new ZipEntry(OUTPUT_FILE_ARCHIVE_ENTRY);
-            zipOut.putNextEntry(zipEntry);
-            out.write("# x,y,z,northBlocked,eastBlocked,southBlocked,westBlocked");
-            for (Tile tile : tiles) {
-                assert tile.isWalkable && tile.directionalBlockers.isPresent();
-
-                out.write('\n');
-                out.write(Integer.toString(tile.position.getX()));
-                out.write(',');
-                out.write(Integer.toString(tile.position.getY()));
-                out.write(',');
-                out.write(Integer.toString(tile.position.getZ()));
-                out.write(',');
-                out.write(Boolean.toString(tile.directionalBlockers.get().northBlocked));
-                out.write(',');
-                out.write(Boolean.toString(tile.directionalBlockers.get().eastBlocked));
-                out.write(',');
-                out.write(Boolean.toString(tile.directionalBlockers.get().southBlocked));
-                out.write(',');
-                out.write(Boolean.toString(tile.directionalBlockers.get().westBlocked));
-            }
-        }
+    private String teleportsToString(final List<Teleport> startTeleports) {
+        return startTeleports.stream().map(tp -> "\"" + tp.title + "\"").collect(Collectors.joining(","));
     }
 
     private void init() throws IOException {
@@ -154,20 +124,23 @@ public class MovementDumper {
         final DataDeserializer.TeleportsAndTransports teleportsAndTransports =
                 new DataDeserializer().readTeleportsAndTransports();
 
+        this.allTeleports = teleportsAndTransports.teleports;
+        this.allTransports = teleportsAndTransports.transports;
+        this.teleportsLeftToExplore = new HashMap<>(this.allTeleports);
 
-        final long amountOfTransports = teleportsAndTransports.transports.values().stream()
-                .mapToLong(Collection::size)
+
+        final int amountOfTransports = this.allTransports.values().stream()
+                .mapToInt(Collection::size)
                 .sum();
 
         logger.info("Read " + amountOfTransports + " transports.");
 
-        final long amountOfTeleports = teleportsAndTransports.teleports.values().stream()
-                .mapToLong(List::size)
+        final int amountOfTeleports = this.allTeleports.values().stream()
+                .mapToInt(List::size)
                 .sum();
 
         logger.info("Read " + amountOfTeleports + " teleports.");
 
-        this.teleportsLeftToExplore = new HashMap<>(teleportsAndTransports.teleports);
-        this.tileManager = new TileManager(regions, objectManager, teleportsAndTransports.transports);
+        this.tileManager = new TileManager(regions, objectManager, this.allTransports);
     }
 }

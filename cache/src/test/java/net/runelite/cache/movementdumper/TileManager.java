@@ -11,7 +11,6 @@ import org.slf4j.LoggerFactory;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
-import java.util.stream.Stream;
 
 public class TileManager {
     private static final HashSet<Integer> LOCATION_TYPES_ALWAYS_WALKABLE = new HashSet<>(Arrays.asList(1, 3, 4, 5, 6, 7, 8));
@@ -21,15 +20,15 @@ public class TileManager {
     private final HashSet<Position> positionsBlockedByBigObjects;
     private final HashMap<Position, Region> allRegions;
     private final ObjectManager objectManager;
-    private final Map<Position, List<Transport>> transports;
+    private final Map<Position, List<Transport>> allTransports;
 
     public TileManager(final Collection<Region> allRegions,
                        final ObjectManager objectManager,
-                       final Map<Position, List<Transport>> transports) {
+                       final Map<Position, List<Transport>> allTransports) {
         logger.info("Init");
 
         this.objectManager = objectManager;
-        this.transports = transports;
+        this.allTransports = allTransports;
         this.positionsBlockedByBigObjects = new HashSet<>();
         this.allRegions = new HashMap<>();
 
@@ -91,7 +90,7 @@ public class TileManager {
         getNorthWestIfWalkable(tile).ifPresent(neighbours::add);
 
         // Transports from this position
-        final List<Transport> transports = this.transports.get(tile.position);
+        final List<Transport> transports = this.allTransports.get(tile.position);
         if(transports != null) {
             transports.stream()
                     .map(transport -> this.getTile(transport.to))
