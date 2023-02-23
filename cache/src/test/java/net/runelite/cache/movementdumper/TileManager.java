@@ -90,21 +90,15 @@ public class TileManager {
         getWestIfWalkable(tile).ifPresent(neighbours::add);
         getNorthWestIfWalkable(tile).ifPresent(neighbours::add);
 
-        // Transports from this and adjacent positions
-        // Adjacent transports are reachable if this tile does not block movement into that direction
-        Stream.of(
-                        tile.position,
-                        tile.directionalBlockers.get().northBlocked ? null : PositionUtils.moveNorth(tile.position),
-                        tile.directionalBlockers.get().eastBlocked ? null : PositionUtils.moveEast(tile.position),
-                        tile.directionalBlockers.get().southBlocked ? null : PositionUtils.moveSouth(tile.position),
-                        tile.directionalBlockers.get().westBlocked ? null : PositionUtils.moveWest(tile.position))
-                .filter(Objects::nonNull)
-                .filter(this.transports::containsKey)
-                .flatMap(pos -> this.transports.get(pos).stream())
-                .map(transport -> this.getTile(transport.to))
-                .filter(Optional::isPresent)
-                .filter(destination -> destination.get().isWalkable)
-                .forEachOrdered(destination -> neighbours.add(destination.get()));
+        // Transports from this position
+        final List<Transport> transports = this.transports.get(tile.position);
+        if(transports != null) {
+            transports.stream()
+                    .map(transport -> this.getTile(transport.to))
+                    .filter(Optional::isPresent)
+                    .filter(destination -> destination.get().isWalkable)
+                    .forEachOrdered(destination -> neighbours.add(destination.get()));
+        }
 
         return neighbours;
     }
