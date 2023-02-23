@@ -3,10 +3,7 @@ package net.runelite.cache.movementdumper;
 import com.google.gson.Gson;
 import net.runelite.cache.region.Position;
 
-import java.io.BufferedReader;
-import java.io.FileInputStream;
-import java.io.IOException;
-import java.io.InputStreamReader;
+import java.io.*;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -15,8 +12,8 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 public class DataDeserializer {
-    private final static String WIKI_FILE_PATH = "C:\\Users\\Oli\\Desktop\\Code\\OSRS Navigator\\wiki maps pathfinding project\\spring restructure\\pathfinder\\src\\main\\resources\\transports.json";
-    private final static String SKRETZO_FILE_PATH = "C:\\Users\\Oli\\Desktop\\Code\\OSRS Navigator\\wiki maps pathfinding project\\spring restructure\\pathfinder\\src\\main\\resources\\skretzo_data.txt";
+    private final static String WIKI_FILE = "transports.json";
+    private final static String SKRETZO_FILE = "skretzo_data.txt";
 
 
     public TeleportsAndTransports readTeleportsAndTransports() throws IOException {
@@ -58,9 +55,12 @@ public class DataDeserializer {
      * @throws IOException can't read file
      */
     private TransportJson[] deserializeWikiData() throws IOException {
-        try (final FileInputStream file = new FileInputStream(WIKI_FILE_PATH);
-             BufferedReader jsonFile = new BufferedReader(new InputStreamReader(file))) {
-            return new Gson().fromJson(jsonFile, TransportJson[].class);
+        try (final InputStream file = DataDeserializer.class.getResourceAsStream(WIKI_FILE)) {
+            if(file == null) {
+                throw new IOException("Could not find resource: " + WIKI_FILE);
+            }
+            BufferedReader reader = new BufferedReader(new InputStreamReader(file));
+            return new Gson().fromJson(reader, TransportJson[].class);
         }
     }
 
@@ -70,8 +70,12 @@ public class DataDeserializer {
      * @return The content of the file in an object. WARNING transportJson[i].duration is ALWAYS 1
      */
     private TransportJson[] deserializeSkretzoData() throws IOException {
-        try (final FileInputStream file = new FileInputStream(SKRETZO_FILE_PATH);
-             final BufferedReader reader = new BufferedReader(new InputStreamReader(file))) {
+        try (final InputStream file = DataDeserializer.class.getResourceAsStream(SKRETZO_FILE)) {
+            if(file == null) {
+                throw new IOException("Could not find resource: " + SKRETZO_FILE);
+            }
+            final BufferedReader reader = new BufferedReader(new InputStreamReader(file));
+
             // Filter comments
             final Stream<String> lines = reader.lines().filter(line -> !(line.startsWith("#") || line.isEmpty()));
             final Stream<TransportJson> transports = lines.map(line -> {
