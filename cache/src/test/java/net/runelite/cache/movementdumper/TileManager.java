@@ -76,6 +76,10 @@ public class TileManager {
     public Collection<Tile> getDirectNeighbours(Tile tile) {
         List<Tile> neighbours = new LinkedList<>();
 
+        if (!tile.isWalkable || tile.directionalBlockers.get().allBlocked()) {
+            return neighbours;
+        }
+
         // Walkable neighbours
         getNorthIfWalkable(tile).ifPresent(neighbours::add);
         getNorthEastIfWalkable(tile).ifPresent(neighbours::add);
@@ -87,18 +91,20 @@ public class TileManager {
         getNorthWestIfWalkable(tile).ifPresent(neighbours::add);
 
         // Transports from this and adjacent positions
-        // TODO investigate how transports on adjacent positions can be blocked (walls etc?)
-        Stream.of(tile.position,
-                        PositionUtils.moveNorth(tile.position),
-                        PositionUtils.moveEast(tile.position),
-                        PositionUtils.moveWest(tile.position),
-                        PositionUtils.moveSouth(tile.position))
+        // Adjacent transports are reachable if this tile does not block movement into that direction
+        Stream.of(
+                        tile.position,
+                        tile.directionalBlockers.get().northBlocked ? null : PositionUtils.moveNorth(tile.position),
+                        tile.directionalBlockers.get().eastBlocked ? null : PositionUtils.moveEast(tile.position),
+                        tile.directionalBlockers.get().southBlocked ? null : PositionUtils.moveSouth(tile.position),
+                        tile.directionalBlockers.get().westBlocked ? null : PositionUtils.moveWest(tile.position))
+                .filter(Objects::nonNull)
                 .filter(this.transports::containsKey)
                 .flatMap(pos -> this.transports.get(pos).stream())
                 .map(transport -> this.getTile(transport.to))
                 .filter(Optional::isPresent)
-                .filter(transportTo -> transportTo.get().isWalkable)
-                .forEachOrdered(transportTo -> neighbours.add(transportTo.get()));
+                .filter(destination -> destination.get().isWalkable)
+                .forEachOrdered(destination -> neighbours.add(destination.get()));
 
         return neighbours;
     }
