@@ -18,7 +18,7 @@ import java.util.stream.Collectors;
 public class MovementDumper {
     private static final String CACHE_DIR = "C:\\Users\\Oli\\Desktop\\Code\\OSRS Navigator\\wiki maps pathfinding project\\movement dumper\\2023-02-15-rev211\\";
     private static final String CACHE_DIR_XTEAKEYS_FILE = "xteas_old_format.json";
-    private static final String OUTPUT_ARCHIVE = "C:\\Users\\Oli\\Desktop\\Code\\OSRS Navigator\\wiki maps pathfinding project\\spring restructure\\pathfinder\\src\\main\\resources\\movement.csv.zip";
+    private static final String OUTPUT_ARCHIVE = "C:\\Users\\Oli\\Desktop\\Code\\OSRS Navigator\\wiki maps pathfinding project\\spring restructure\\pathfinder\\src\\main\\resources\\mapdata.zip";
 
     private final Logger logger = LoggerFactory.getLogger(MovementDumper.class);
     private TileManager tileManager;
