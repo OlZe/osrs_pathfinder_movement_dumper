@@ -32,9 +32,21 @@ public class DataSerializer {
     }
 
     private void writeMovementData(final Collection<Tile> tiles, final Writer out) throws IOException {
-        out.write("# x,y,z,northBlocked,eastBlocked,southBlocked,westBlocked");
+        out.write("# x,y,z,northBlocked,eastBlocked,southBlocked,westBlocked,wildernessLevel\n");
+        out.write("# wildernessLevel: 0 = Below 20, 1 = Between 20 and 29, 2 = Above 30");
         for (Tile tile : tiles) {
             assert tile.isWalkable && tile.directionalBlockers.isPresent();
+
+            final int wildernessLevel;
+            if(tile.wildernessLevel.equals(PositionUtils.WildernessLevels.ABOVE30)) {
+                wildernessLevel = 2;
+            }
+            else if (tile.wildernessLevel.equals(PositionUtils.WildernessLevels.BETWEEN20AND30)) {
+                wildernessLevel = 1;
+            }
+            else {
+                wildernessLevel = 0;
+            }
 
             out.write('\n');
             out.write(Integer.toString(tile.position.getX()));
@@ -50,6 +62,8 @@ public class DataSerializer {
             out.write(Boolean.toString(tile.directionalBlockers.get().southBlocked));
             out.write(',');
             out.write(Boolean.toString(tile.directionalBlockers.get().westBlocked));
+            out.write(',');
+            out.write(Integer.toString(wildernessLevel));
         }
     }
 

@@ -13,12 +13,15 @@ public class Tile {
     /** Populated if isWalkable is true */
     public final Optional<DirectionalBlockers> directionalBlockers;
 
-    public Tile(final Position position, final boolean isWalkable, final Optional<DirectionalBlockers> directionalBlockers) {
+    public final PositionUtils.WildernessLevels wildernessLevel;
+
+    public Tile(final Position position, final boolean isWalkable, final Optional<DirectionalBlockers> directionalBlockers, final PositionUtils.WildernessLevels wildernessLevel) {
         this.position = position;
         this.isWalkable = isWalkable;
         this.directionalBlockers = directionalBlockers;
+        this.wildernessLevel = wildernessLevel;
 
-        if(isWalkable) {
+        if (isWalkable) {
             assert directionalBlockers.isPresent();
             assert !directionalBlockers.get().allBlocked();
         }

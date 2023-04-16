@@ -6,6 +6,9 @@ import net.runelite.cache.region.Region;
 
 class PositionUtils {
 
+    private static final Area WILDERNESS20TO30 = new Area(2944, 3672, 3391, 3751);
+    private static final Area WILDERNESSABOVE30 = new Area(2944, 3752, 3391, 3967);
+
     // Disallow instantiation as this class only has static members
     private PositionUtils() {
     }
@@ -49,5 +52,51 @@ class PositionUtils {
                 position.getX() / 64,
                 position.getY() / 64,
                 0);
+    }
+
+    public static WildernessLevels getWildernessLevel(final Position position) {
+        if (WILDERNESSABOVE30.contains(position)) {
+            return WildernessLevels.ABOVE30;
+        } else if (WILDERNESS20TO30.contains(position)) {
+            return WildernessLevels.BETWEEN20AND30;
+        } else {
+            return WildernessLevels.BELOW20;
+        }
+    }
+
+    public static enum WildernessLevels {
+        /**
+         * Wilderness Level < 20
+         */
+        BELOW20,
+        /**
+         * Wilderness Level >= 20 and < 30
+         */
+        BETWEEN20AND30,
+        /**
+         * Wilderness Level >= 30
+         */
+        ABOVE30
+    }
+
+    private static class Area {
+        private final int leftX;
+        private final int lowerY;
+        private final int rightX;
+        private final int upperY;
+
+        private Area(final int leftX, final int lowerY, final int rightX, final int upperY) {
+            this.leftX = leftX;
+            this.lowerY = lowerY;
+            this.rightX = rightX;
+            this.upperY = upperY;
+        }
+
+        public boolean contains(Position position) {
+            return position.getX() >= this.leftX
+                    && position.getX() <= this.rightX
+                    && position.getY() >= this.lowerY
+                    && position.getY() <= this.upperY;
+        }
     }
 }

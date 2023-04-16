@@ -48,7 +48,7 @@ public class TileManager {
         }
 
         if (this.positionsBlockedByBigObjects.contains(position)) {
-            return Optional.of(new Tile(position, false, Optional.empty()));
+            return Optional.of(new Tile(position, false, Optional.empty(), PositionUtils.getWildernessLevel(position)));
         }
 
         final Position relativePosition = PositionUtils.toRelative(position);
@@ -60,16 +60,16 @@ public class TileManager {
         }
 
         if (!tileSettings.isWalkable) {
-            return Optional.of(new Tile(position, false, Optional.empty()));
+            return Optional.of(new Tile(position, false, Optional.empty(), PositionUtils.getWildernessLevel(position)));
         }
 
         final Position normalizedPos = isBridgeAbove ? PositionUtils.move(position, 0, 0, 1) : position;
         final DirectionalBlockers directionalBlockers = this.processLocations(region.get(), normalizedPos);
         if (directionalBlockers.allBlocked()) {
-            return Optional.of(new Tile(position, false, Optional.empty()));
+            return Optional.of(new Tile(position, false, Optional.empty(), PositionUtils.getWildernessLevel(position)));
         }
 
-        return Optional.of(new Tile(position, true, Optional.of(directionalBlockers)));
+        return Optional.of(new Tile(position, true, Optional.of(directionalBlockers), PositionUtils.getWildernessLevel(position)));
     }
 
     public Collection<Tile> getDirectNeighbours(Tile tile) {
