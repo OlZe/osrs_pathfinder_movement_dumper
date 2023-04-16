@@ -83,6 +83,7 @@ public class DataDeserializer {
                 final String[] parts_startCoordinate = parts[0].split(" ");
                 final String[] parts_endCoordinate = parts[1].split(" ");
                 final String methodOfMovement = parts[2];
+                final byte duration = (parts.length >= 7 && !parts[6].isEmpty()) ? Byte.parseByte(parts[6]) : 1;
                 final CoordinateJson startCoordinate = new CoordinateJson();
                 startCoordinate.x = Integer.parseInt(parts_startCoordinate[0]);
                 startCoordinate.y = Integer.parseInt(parts_startCoordinate[1]);
@@ -95,7 +96,7 @@ public class DataDeserializer {
                 transport.start = startCoordinate;
                 transport.end = endCoordinate;
                 transport.title = methodOfMovement;
-                transport.duration = (byte) 1; // TODO Skretzo's data does not include duration
+                transport.duration = duration;
                 return transport;
             });
             return transports.toArray(TransportJson[]::new);
