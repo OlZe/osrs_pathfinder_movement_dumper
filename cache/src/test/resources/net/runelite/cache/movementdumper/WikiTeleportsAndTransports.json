@@ -757,7 +757,8 @@
             "z": 0
         }, 
         "id": 76, 
-        "title": "Combat bracelet: Warriors' Guild"
+        "title": "Combat bracelet: Warriors' Guild",
+        "canTeleportUpTo30Wildy": true
     }, 
     {
         "duration": 4, 
@@ -767,7 +768,8 @@
             "z": 0
         }, 
         "id": 77, 
-        "title": "Combat bracelet: Champions' Guild"
+        "title": "Combat bracelet: Champions' Guild",
+        "canTeleportUpTo30Wildy": true
     }, 
     {
         "duration": 4, 
@@ -777,7 +779,8 @@
             "z": 0
         }, 
         "id": 78, 
-        "title": "Combat bracelet: Monastery"
+        "title": "Combat bracelet: Monastery",
+        "canTeleportUpTo30Wildy": true
     }, 
     {
         "duration": 4, 
@@ -787,7 +790,8 @@
             "z": 0
         }, 
         "id": 79, 
-        "title": "Combat bracelet: Ranging Guild"
+        "title": "Combat bracelet: Ranging Guild",
+        "canTeleportUpTo30Wildy": true
     }, 
     {
         "duration": 4, 
@@ -797,7 +801,8 @@
             "z": 0
         }, 
         "id": 80, 
-        "title": "Skills necklace: Fishing Guild"
+        "title": "Skills necklace: Fishing Guild",
+        "canTeleportUpTo30Wildy": true
     }, 
     {
         "duration": 4, 
@@ -807,7 +812,8 @@
             "z": 0
         }, 
         "id": 81, 
-        "title": "Skills necklace: Mining Guild"
+        "title": "Skills necklace: Mining Guild",
+        "canTeleportUpTo30Wildy": true
     }, 
     {
         "duration": 4, 
@@ -817,7 +823,8 @@
             "z": 0
         }, 
         "id": 82, 
-        "title": "Skills necklace: Crafting Guild"
+        "title": "Skills necklace: Crafting Guild",
+        "canTeleportUpTo30Wildy": true
     }, 
     {
         "duration": 4, 
@@ -827,7 +834,8 @@
             "z": 0
         }, 
         "id": 83, 
-        "title": "Skills necklace: Cooking Guild"
+        "title": "Skills necklace: Cooking Guild",
+        "canTeleportUpTo30Wildy": true
     }, 
     {
         "duration": 4, 
@@ -837,7 +845,8 @@
             "z": 0
         }, 
         "id": 84, 
-        "title": "Skills necklace: Woodcutting Guild"
+        "title": "Skills necklace: Woodcutting Guild",
+        "canTeleportUpTo30Wildy": true
     }, 
     {
         "duration": 4, 
@@ -847,7 +856,8 @@
             "z": 0
         }, 
         "id": 85, 
-        "title": "Skills necklace: Farming Guild"
+        "title": "Skills necklace: Farming Guild",
+        "canTeleportUpTo30Wildy": true
     }, 
     {
         "duration": 4, 
@@ -857,7 +867,8 @@
             "z": 0
         }, 
         "id": 86, 
-        "title": "Ring of wealth: Miscellania"
+        "title": "Ring of wealth: Miscellania",
+        "canTeleportUpTo30Wildy": true
     }, 
     {
         "duration": 4, 
@@ -867,7 +878,8 @@
             "z": 0
         }, 
         "id": 87, 
-        "title": "Ring of wealth: Grand Exchange"
+        "title": "Ring of wealth: Grand Exchange",
+        "canTeleportUpTo30Wildy": true
     }, 
     {
         "duration": 4, 
@@ -877,7 +889,8 @@
             "z": 0
         }, 
         "id": 88, 
-        "title": "Ring of wealth: Falador Park"
+        "title": "Ring of wealth: Falador Park",
+        "canTeleportUpTo30Wildy": true
     }, 
     {
         "duration": 4, 
@@ -887,7 +900,8 @@
             "z": 0
         }, 
         "id": 89, 
-        "title": "Ring of wealth: Dondakan's Rock"
+        "title": "Ring of wealth: Dondakan's Rock",
+        "canTeleportUpTo30Wildy": true
     }, 
     {
         "duration": 4, 
@@ -897,7 +911,8 @@
             "z": 0
         }, 
         "id": 90, 
-        "title": "Amulet of glory: Edgeville"
+        "title": "Amulet of glory: Edgeville",
+        "canTeleportUpTo30Wildy": true
     }, 
     {
         "duration": 4, 
@@ -907,7 +922,8 @@
             "z": 0
         }, 
         "id": 91, 
-        "title": "Amulet of glory: Karamja"
+        "title": "Amulet of glory: Karamja",
+        "canTeleportUpTo30Wildy": true
     }, 
     {
         "duration": 4, 
@@ -917,7 +933,8 @@
             "z": 0
         }, 
         "id": 92, 
-        "title": "Amulet of glory: Draynor Village"
+        "title": "Amulet of glory: Draynor Village",
+        "canTeleportUpTo30Wildy": true
     }, 
     {
         "duration": 4, 
@@ -927,7 +944,8 @@
             "z": 0
         }, 
         "id": 93, 
-        "title": "Amulet of glory: Al Kharid"
+        "title": "Amulet of glory: Al Kharid",
+        "canTeleportUpTo30Wildy": true
     }, 
     {
         "duration": 4, 
@@ -967,7 +985,8 @@
             "z": 0
         }, 
         "id": 97, 
-        "title": "Slayer ring: Stronghold Slayer Cave"
+        "title": "Slayer ring: Stronghold Slayer Cave",
+        "canTeleportUpTo30Wildy": true
     }, 
     {
         "duration": 5, 
@@ -977,7 +996,8 @@
             "z": 0
         }, 
         "id": 98, 
-        "title": "Slayer ring: Morytania Slayer Tower"
+        "title": "Slayer ring: Morytania Slayer Tower",
+        "canTeleportUpTo30Wildy": true
     }, 
     {
         "duration": 5, 
@@ -987,7 +1007,8 @@
             "z": 0
         }, 
         "id": 99, 
-        "title": "Slayer ring: Rellekka Slayer Caves"
+        "title": "Slayer ring: Rellekka Slayer Caves",
+        "canTeleportUpTo30Wildy": true
     }, 
     {
         "duration": 5, 
@@ -997,7 +1018,8 @@
             "z": 0
         }, 
         "id": 100, 
-        "title": "Slayer ring: Tarn's Lair"
+        "title": "Slayer ring: Tarn's Lair",
+        "canTeleportUpTo30Wildy": true
     }, 
     {
         "duration": 5, 
@@ -1007,7 +1029,8 @@
             "z": 0
         }, 
         "id": 101, 
-        "title": "Slayer ring: Dark Beasts"
+        "title": "Slayer ring: Dark Beasts",
+        "canTeleportUpTo30Wildy": true
     }, 
     {
         "duration": 4, 
@@ -1177,7 +1200,8 @@
             "z": 0
         }, 
         "id": 118, 
-        "title": "Royal seed pod: "
+        "title": "Royal seed pod: ",
+        "canTeleportUpTo30Wildy": true
     }, 
     {
         "duration": 4, 
@@ -1187,7 +1211,8 @@
             "z": 3
         }, 
         "id": 119, 
-        "title": "Pharaoh's sceptre: Jalsavrah"
+        "title": "Pharaoh's sceptre: Jalsavrah",
+        "canTeleportUpTo30Wildy": true
     }, 
     {
         "duration": 4, 
@@ -1197,7 +1222,8 @@
             "z": 0
         }, 
         "id": 120, 
-        "title": "Pharaoh's sceptre: Jaleustrophos"
+        "title": "Pharaoh's sceptre: Jaleustrophos",
+        "canTeleportUpTo30Wildy": true
     }, 
     {
         "duration": 4, 
@@ -1207,7 +1233,8 @@
             "z": 0
         }, 
         "id": 121, 
-        "title": "Pharaoh's sceptre: Jaldraocht"
+        "title": "Pharaoh's sceptre: Jaldraocht",
+        "canTeleportUpTo30Wildy": true
     }, 
     {
         "duration": 12, 

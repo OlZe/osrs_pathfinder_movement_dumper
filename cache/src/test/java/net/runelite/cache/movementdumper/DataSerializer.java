@@ -33,7 +33,10 @@ public class DataSerializer {
 
     private void writeMovementData(final Collection<Tile> tiles, final Writer out) throws IOException {
         out.write("# x,y,z,northBlocked,eastBlocked,southBlocked,westBlocked,wildernessLevel\n");
-        out.write("# wildernessLevel: 0 = Below 20, 1 = Between 20 and 29, 2 = Above 30");
+        out.write("# wildernessLevel = 0: <= 20\n");
+        out.write("# wildernessLevel = 1: > 20 and <= 30\n");
+        out.write("# wildernessLevel = 2: > 30");
+
         for (Tile tile : tiles) {
             assert tile.isWalkable && tile.directionalBlockers.isPresent();
 
@@ -68,7 +71,7 @@ public class DataSerializer {
     }
 
     private void writeTeleports(final Collection<Teleport> teleports, final Writer out) throws IOException {
-        out.write("# x,y,z,duration,title");
+        out.write("# x,y,z,duration,title,canTeleportUpTo30Wildy");
         for (Teleport teleport : teleports) {
             out.write('\n');
             out.write(Integer.toString(teleport.destination.getX()));
@@ -80,6 +83,8 @@ public class DataSerializer {
             out.write(Byte.toString(teleport.duration));
             out.write(',');
             out.write(teleport.title.replace(',', ' '));
+            out.write(',');
+            out.write(Boolean.toString(teleport.canTeleportUpTo30Wildy));
         }
     }
 

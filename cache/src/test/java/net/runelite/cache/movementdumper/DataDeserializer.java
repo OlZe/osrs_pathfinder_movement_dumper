@@ -3,7 +3,10 @@ package net.runelite.cache.movementdumper;
 import com.google.gson.Gson;
 import net.runelite.cache.region.Position;
 
-import java.io.*;
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -12,94 +15,83 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 public class DataDeserializer {
-    private final static String WIKI_FILE = "transports.json";
-    private final static String SKRETZO_FILE = "skretzo_data.txt";
+    private final static String WIKI_FILE = "WikiTeleportsAndTransports.json";
+    private final static String SKRETZO_FILE = "SkretzoTransports.txt";
 
 
     public TeleportsAndTransports readTeleportsAndTransports() throws IOException {
-        final TransportJson[] wikiData = this.deserializeWikiData();
-        final TransportJson[] skretzoData = this.deserializeSkretzoData();
+        final TeleportsAndTransportsJson[] wikiData = this.deserializeWikiData();
 
-        final Predicate<TransportJson> isTeleport = t -> t.start == null;
+        final Predicate<TeleportsAndTransportsJson> isTeleport = t -> t.start == null;
         final boolean teleportCategory = true;
         final boolean transportCategory = false;
-        final Map<Boolean, List<TransportJson>> allData = Stream.concat(
-                        Arrays.stream(wikiData),
-                        Arrays.stream(skretzoData))
+        final Map<Boolean, List<TeleportsAndTransportsJson>> wikiDataSeparated = Arrays.stream(wikiData)
                 .collect(Collectors.partitioningBy(isTeleport));
 
-        final Map<Position, List<Teleport>> teleports =
-                allData.get(teleportCategory).stream()
+        final Map<Position, List<Teleport>> allTeleports =
+                wikiDataSeparated.get(teleportCategory).stream()
                         .map(t -> new Teleport(
                                 new Position(t.end.x, t.end.y, t.end.z),
                                 t.title,
-                                t.duration))
+                                t.duration,
+                                t.canTeleportUpTo30Wildy))
                         .collect(Collectors.groupingBy(t -> t.destination));
 
-        final Map<Position, List<Transport>> transports =
-                allData.get(transportCategory).stream()
-                        .map(t -> new Transport(
-                                new Position(t.start.x, t.start.y, t.start.z),
-                                new Position(t.end.x, t.end.y, t.end.z),
-                                t.title,
-                                t.duration))
+        final List<Transport> skretzoTransports = this.deserializeSkretzoTransports();
+        final Stream<Transport> wikiTransports = wikiDataSeparated.get(transportCategory).stream()
+                .map(t -> new Transport(
+                        new Position(t.start.x, t.start.y, t.start.z),
+                        new Position(t.end.x, t.end.y, t.end.z),
+                        t.title,
+                        t.duration));
+        final Map<Position, List<Transport>> allTransports =
+                Stream.concat(wikiTransports, skretzoTransports.stream())
                         .collect(Collectors.groupingBy(t -> t.from));
 
-        return new TeleportsAndTransports(teleports, transports);
+        return new TeleportsAndTransports(allTeleports, allTransports);
     }
 
-    /**
-     * Reads the file "transports.json"
-     *
-     * @return The content of "transports.json" in an Object
-     * @throws IOException can't read file
-     */
-    private TransportJson[] deserializeWikiData() throws IOException {
+    private TeleportsAndTransportsJson[] deserializeWikiData() throws IOException {
         try (final InputStream file = DataDeserializer.class.getResourceAsStream(WIKI_FILE)) {
-            if(file == null) {
+            if (file == null) {
                 throw new IOException("Could not find resource: " + WIKI_FILE);
             }
             BufferedReader reader = new BufferedReader(new InputStreamReader(file));
-            return new Gson().fromJson(reader, TransportJson[].class);
+            return new Gson().fromJson(reader, TeleportsAndTransportsJson[].class);
         }
     }
 
-    /**
-     * Reads skretzo's data file and parses them into TransportJson[]
-     *
-     * @return The content of the file in an object. WARNING transportJson[i].duration is ALWAYS 1
-     */
-    private TransportJson[] deserializeSkretzoData() throws IOException {
+    private List<Transport> deserializeSkretzoTransports() throws IOException {
         try (final InputStream file = DataDeserializer.class.getResourceAsStream(SKRETZO_FILE)) {
-            if(file == null) {
+            if (file == null) {
                 throw new IOException("Could not find resource: " + SKRETZO_FILE);
             }
             final BufferedReader reader = new BufferedReader(new InputStreamReader(file));
 
             // Filter comments
             final Stream<String> lines = reader.lines().filter(line -> !(line.startsWith("#") || line.isEmpty()));
-            final Stream<TransportJson> transports = lines.map(line -> {
+            final Stream<Transport> transports = lines.map(line -> {
                 final String[] parts = line.split("\t");
-                final String[] parts_startCoordinate = parts[0].split(" ");
-                final String[] parts_endCoordinate = parts[1].split(" ");
+                final String[] parts_startPos = parts[0].split(" ");
+                final String[] parts_endPos = parts[1].split(" ");
                 final String methodOfMovement = parts[2];
                 final byte duration = (parts.length >= 7 && !parts[6].isEmpty()) ? Byte.parseByte(parts[6]) : 1;
-                final CoordinateJson startCoordinate = new CoordinateJson();
-                startCoordinate.x = Integer.parseInt(parts_startCoordinate[0]);
-                startCoordinate.y = Integer.parseInt(parts_startCoordinate[1]);
-                startCoordinate.z = Integer.parseInt(parts_startCoordinate[2]);
-                final CoordinateJson endCoordinate = new CoordinateJson();
-                endCoordinate.x = Integer.parseInt(parts_endCoordinate[0]);
-                endCoordinate.y = Integer.parseInt(parts_endCoordinate[1]);
-                endCoordinate.z = Integer.parseInt(parts_endCoordinate[2]);
-                final TransportJson transport = new TransportJson();
-                transport.start = startCoordinate;
-                transport.end = endCoordinate;
-                transport.title = methodOfMovement;
-                transport.duration = duration;
-                return transport;
+
+                final Position startPos = new Position(
+                        Integer.parseInt(parts_startPos[0]),
+                        Integer.parseInt(parts_startPos[1]),
+                        Integer.parseInt(parts_startPos[2]));
+                final Position endPos = new Position(
+                        Integer.parseInt(parts_endPos[0]),
+                        Integer.parseInt(parts_endPos[1]),
+                        Integer.parseInt(parts_endPos[2]));
+                return new Transport(
+                        startPos,
+                        endPos,
+                        methodOfMovement,
+                        duration);
             });
-            return transports.toArray(TransportJson[]::new);
+            return transports.collect(Collectors.toList());
         }
     }
 
@@ -109,11 +101,12 @@ public class DataDeserializer {
         public int z;
     }
 
-    private static class TransportJson {
+    private static class TeleportsAndTransportsJson {
         public CoordinateJson start;
         public CoordinateJson end;
         public String title;
         public byte duration;
+        public boolean canTeleportUpTo30Wildy;
     }
 
     static class TeleportsAndTransports {
