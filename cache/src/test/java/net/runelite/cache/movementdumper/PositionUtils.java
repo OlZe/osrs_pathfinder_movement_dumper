@@ -7,18 +7,19 @@ import java.util.Arrays;
 
 
 class PositionUtils {
-
+    /** > 20 and <= 30 */
     private static final Area[] WILDERNESS20TO30 = new Area[]{
-            new Area(2944, 3672, 3391, 3751), // Surface
-            new Area(3136, 10072, 3263, 10151), // Revenant Caves
-            new Area(3328, 10072, 3455, 10151), // Wilderness Slayer Dungeon
+            new Area(2944, 3680, 3391, 3759), // Surface
+            new Area(3136, 10080, 3263, 10159), // Revenant Caves
+            new Area(3328, 10080, 3455, 10159), // Wilderness Slayer Dungeon
             new Area(3008, 10112, 3071, 10175)     // Wilderness God Wars Dungeon
     };
+    /** > 30 */
     private static final Area[] WILDERNESSABOVE30 = new Area[]{
-            new Area(2944, 3752, 3391, 3967), // Surface
+            new Area(2944, 3760, 3391, 3967), // Surface
             new Area(2922, 10240, 3071, 10367), // Deep Wilderness- and Lava Maze Dungeon
-            new Area(3136, 10152, 3263, 10239), // Revenant Caves
-            new Area(3328, 10152, 3455, 10175), // Wilderness Slayer Dungeon
+            new Area(3136, 10160, 3263, 10239), // Revenant Caves
+            new Area(3328, 10160, 3455, 10175), // Wilderness Slayer Dungeon
             new Area(3219,10331,3247,10352)     // Scorpia
     };
 
@@ -81,15 +82,15 @@ class PositionUtils {
 
     public enum WildernessLevels {
         /**
-         * Wilderness Level < 20
+         * Wilderness Level <= 20
          */
         BELOW20,
         /**
-         * Wilderness Level >= 20 and < 30
+         * Wilderness Level > 20 and <= 30
          */
         BETWEEN20AND30,
         /**
-         * Wilderness Level >= 30
+         * Wilderness Level > 30
          */
         ABOVE30
     }
